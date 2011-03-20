@@ -1,7 +1,7 @@
 /* Variables and functions exported from vmsbackup.c.  See vmsbackup.c
    for comments on each variable or function.  */
 
-extern int cflag, dflag, eflag, sflag, tflag, vflag, wflag, xflag;
+extern int cflag, dflag, eflag, sflag, tflag, vflag, wflag, xflag, debugflag;
 extern int flag_binary;
 extern int flag_full;
 extern char *tapefile;

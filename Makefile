@@ -1,39 +1,60 @@
+#Make file for VMS backup program
 #
+
+##############################
+# Choose line depending if you want to have remote tape support
 #
-REMOTE=#-DREMOTE			# -DREMOTE  use remote tape
-CFLAGS= $(REMOTE) -g
-LFLAGS=
-LIBS= #-lrmt   			# remote magtape library
-OWNER=tar			# user for remote tape access
+REMOTE=
+#REMOTE=-DREMOTE                        # -DREMOTE  use remote tape
+##############################
+# Set this if you want to use long option names
+#
+#LONGOPT=
+LONGOPT=-DHAVE_GETOPTLONG
+#
+##############################
+# Choose one of these two sets of lines depending on if you have
+# the starlet library available.
+#
+# Choose this set if you do NOT have starlet available
+#
+#CFLAGS=$(REMOTE) $(LONGOPT) -fdollars-in-identifiers -O
+#LDLIBS=
+#
+# Choose this set if you DO have starlet available
+#
+STARLETDIR=/home/kevin/basic/starlet
+CFLAGS=$(REMOTE) $(LONGOPT) -fdollars-in-identifiers -I $(STARLETDIR) -DHAVE_STARLET -g -DDEBUG
+LDLIBS=$(STARLETDIR)/starlet.a
+#
+##############################
+#
+OWNER=tar                      # user for remote tape access
 MODE=4755
 BINDIR=/usr/local/bin
 MANSEC=l
 MANDIR=/usr/man/man$(MANSEC)
-DISTFILES=README vmsbackup.1 Makefile vmsbackup.c match.c NEWS \
-	build.com dclmain.c getoptmain.c vmsbackup.cld vmsbackup.h \
-	sysdep.h
+DISTFILES=README vmsbackup.1 Makefile vmsbackup.c match.c NEWS  build.com dclmain.c getoptmain.c vmsbackup.cld vmsbackup.h  sysdep.h
 
-#
 vmsbackup: vmsbackup.o match.o getoptmain.o
-	cc $(LFLAGS) -o vmsbackup vmsbackup.o match.o getoptmain.o $(LIBS)
+
+vmsbackup.o : vmsbackup.c
+match.o : match.c
+getoptmain.o : getoptmain.c
+
 install:
-	install -m $(MODE) -o $(OWNER) -s vmsbackup $(BINDIR)	
+	install -m $(MODE) -o $(OWNER) -s vmsbackup $(BINDIR)
 	cp vmsbackup.1 $(MANDIR)/vmsbackup.$(MANSEC)
+
 clean:
 	rm -f vmsbackup *.o core
+
 shar:
 	shar -a $(DISTFILES) > vmsbackup.shar
-vmsbackup.tar: ${DISTFILES}
+
+dist:
 	rm -rf vmsbackup-dist
 	mkdir vmsbackup-dist
-	for i in $(DISTFILES); do \
-	  ln $${i} vmsbackup-dist; \
-	done
+	for i in $(DISTFILES); do  ln $${i} vmsbackup-dist;  done
 	tar chf vmsbackup.tar vmsbackup-dist
-# We don't put this in a subdirectory, because not doing so seems
-# traditional for .zip files.  That might just be a throwback to the
-# (ancient) days before zip supported subdirectories, I don't know.
-# If you don't have a copy of zip, see 
-#   http://www.cdrom.com/pub/infozip/Info-ZIP.html
-vmsbackup.zip: ${DISTFILES}
-	zip vmsbackup.zip ${DISTFILES}
+

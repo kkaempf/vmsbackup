@@ -59,18 +59,22 @@
 #endif
 #include	<sys/file.h>
 
-#if 0
-/* At one point declaring mkdir was necessary (the help claimed that
-   mkdir was declared in stdlib.h but it didn't seem to be true), for
-   AXP/VMS 6.2, DECC ?.?.  Other reports are that the declaration
-   conflicts with others (VAX/VMS 6.2; AXP/VMS 6.2 and DECC 5.5).  So
-   we'll try just leaving it out and seeing how that works.  */
+#include "fabdef.h"
 
+#ifndef __vax
+/* The help claims that mkdir is declared in stdlib.h but it doesn't
+   seem to be true.  AXP/VMS 6.2, DECC ?.?.  On the other hand, VAX/VMS 6.2
+   seems to declare it in a way which conflicts with this definition.
+   This is starting to sound like a bad dream.  */
 int mkdir ();
 #endif
 
 #include "vmsbackup.h"
 #include "sysdep.h"
+
+#ifdef DEBUG
+static void debug_dump(const unsigned char* buffer, int dsize, int dtype);
+#endif
 
 int match ();
 char *strlocase ();
@@ -158,24 +162,10 @@ char	*def_tapefile = "/dev/rmt8";
 
 char	filename[128];
 int	filesize;
+int	afilesize;
 
 char	recfmt;		/* record format */
-
-#define			FAB_dol_C_UDF	0	/* undefined */
-#define			FAB_dol_C_FIX	1	/* fixed-length record */
-#define			FAB_dol_C_VAR	2	/* variable-length record */
-#define			FAB_dol_C_VFC	3	/* variable-length with fixed-length control record */
-#define 		FAB_dol_C_STM	4	/* RMS-11 stream record (valid only for sequential org) */
-#define			FAB_dol_C_STMLF	5	/* stream record delimited by LF (sequential org only) */
-#define 		FAB_dol_C_STMCR	6	/* stream record delimited by CR (sequential org only) */
-#define			FAB_dol_C_MAXRFM	6	/* maximum rfm supported */
-
 char	recatt;		/* record attributes */
-
-#define			FAB_dol_V_FTN	0	/* FORTRAN carriage control character */
-#define			FAB_dol_V_CR	1	/* line feed - record -carriage return */
-#define			FAB_dol_V_PRN	2	/* print-file carriage control */
-#define			FAB_dol_V_BLK	3	/* records don't cross block boundaries */
 
 FILE	*f	= NULL;
 
@@ -210,7 +200,7 @@ char	*tapefile;
    feature we'll have to figure out what option should control it.  */
 int tflag;
 
-int 	cflag, dflag, eflag, sflag, vflag, wflag, xflag;
+int 	cflag, dflag, eflag, sflag, vflag, wflag, xflag, debugflag;
 
 /* Extract files in binary mode.  FIXME: Haven't tried to document
    (here or in the manpage) exactly what that means.  I think it probably
@@ -372,11 +362,12 @@ size_t rsize;
 	size_t written_on_size = 0;
 	char *backup_version = "unknown";
 	size_t backup_version_size = 7;
-	char date[23] = "<unknown date>";
+	char date[24] = "<unknown date>";
 	short date_length = 0;
 	unsigned long blksz = 0;
 	unsigned int grpsz = 0;
 	unsigned int bufcnt = 0;
+	int i;
 
 	if (!tflag)
 		return;
@@ -396,6 +387,9 @@ size_t rsize;
 		   switch, but I don't know anything about whether they
 		   have "official" names we should be using or anything
 		   like that.  */
+#ifdef DEBUG
+		debug_dump(text, dsize, type);
+#endif
 		switch (type) {
 		case 0:
 			/* This seems to be used for padding at the end
@@ -433,10 +427,22 @@ size_t rsize;
 				unsigned short oscode;
 
 				oscode = getu16 (text);
-				if (oscode == 0x800) {
+				switch(oscode)
+				{
+				case 0x800:
 					os = "OpenVMS AXP";
-				} else if (oscode == 0x400) {
+					break;
+				case 0x400:
 					os = "OpenVMS VAX";
+					break;
+				case 0x004:
+					os = "RSTS/E";
+					break;
+#ifdef DEBUG
+				default:
+					os = "Unknown OS Code";
+					break;
+#endif
 				}
 			}
 			break;
@@ -512,11 +518,21 @@ size_t rsize;
 	int	i, n;
 	char	*p, *q;
 	long nblk;
+	long ablk;
 	short	dsize, lnch;
 	short dtype;
 	char *data;
 	char *cfname;
 	char *sfilename;
+	char date1[24] = " <None specified>";
+	char date2[24] = " <None specified>";
+	char date3[24] = " <None specified>";
+	char date4[24] = " <None specified>";
+	short date_length = 0;
+	unsigned int reviseno = 0;
+	unsigned int fileid1 = 0, fileid2 = 0, fileid3 = 0;
+	unsigned int extension = 0;
+	unsigned int protection = 0;
 
 	/* Various other stuff extracted from the saveset.  */
 	unsigned short grp = 0377;
@@ -525,6 +541,7 @@ size_t rsize;
 	/* Number of blocks which should appear in output.  This doesn't
 	   seem to always be the same as nblk.  */
 	size_t blocks;
+	size_t ablocks;
 
 	int	c;
 
@@ -541,6 +558,10 @@ size_t rsize;
 		dsize = getu16 (((struct bsa *) &buffer[c])->bsa_dol_w_size);
 		dtype = getu16 (((struct bsa *)&buffer[c])->bsa_dol_w_type);
 		data = ((struct bsa *)&buffer[c])->bsa_dol_t_text;
+
+#ifdef DEBUG
+		debug_dump(data, dsize, dtype);
+#endif
 
 		/* Probably should define constants for the cases in this
 		   switch, but I don't know anything about whether they
@@ -564,6 +585,9 @@ size_t rsize;
 		case 0x2c:
 			/* In my example, 6 bytes,
 			   0x7a 0x2 0x57 0x0 0x1 0x1.  */
+			fileid1 = getu16(data);
+			fileid2 = getu16(data + 2);
+			fileid3 = getu16(data + 4);
 			break;
 		case 0x2e:
 			/* In my example, 4 bytes, 0x00000004.  Maybe
@@ -580,6 +604,7 @@ size_t rsize;
 			recatt = data[1];
 			recsize = getu16 (&data[2]);
 			/* bytes 4-7 unaccounted for.  */
+			ablk = getu16 (&data[6]);
 			nblk = getu16 (&data[10])
 				/* Adding in the following amount is a
 				   change that I brought over from
@@ -594,12 +619,14 @@ size_t rsize;
 			if (vfcsize == 0)
 				vfcsize = 2;
 			/* bytes 16-31 unaccounted for */
+			extension = getu16 (&data[18]);
 			break;
 		case 0x2d:
 			/* In my example, 6 bytes.  hex 2b3c 2000 0000.  */
 			break;
 		case 0x30:
 			/* In my example, 2 bytes.  0x44 0xee.  */
+			protection = getu16 (&data[0]);
 			break;
 		case 0x31:
 			/* In my example, 2 bytes.  hex 0000.  */
@@ -624,19 +651,46 @@ size_t rsize;
 			break;
 		case 0x35:
 			/* In my example, 2 bytes.  04 00.  */
+			reviseno = getu16 (&data[0]);
 			break;
 		case 0x36:
+			/* In my example, 8 bytes.  Presumably a date.  */
+			if (memcmp("\0\0\0\0\0\0\0\0", data, 8) != 0 &&
+				!(time_vms_to_asc (&date_length, date4, data)
+				 & 1))
+			{
+				strcpy (date4, "error converting date");
+			}
+			break;
 		case 0x37:
 			/* In my example, 8 bytes.  Presumably a date.  */
+			if (memcmp("\0\0\0\0\0\0\0\0", data, 8) != 0 &&
+				!(time_vms_to_asc (&date_length, date1, data)
+				 & 1))
+			{
+				strcpy (date1, "error converting date");
+			}
 			break;
 		case 0x38:
 			/* In my example, 8 bytes.  Presumably expires
 			   date, since my examples has all zeroes here
 			   and BACKUP prints "<None specified>" for
 			   expires.  */
+			if (memcmp("\0\0\0\0\0\0\0\0", data, 8) != 0 &&
+				!(time_vms_to_asc (&date_length, date2, data)
+				 & 1))
+			{
+				strcpy (date2, "error converting date");
+			}
 			break;
 		case 0x39:
 			/* In my example, 8 bytes.  Presumably a date.  */
+			if (memcmp("\0\0\0\0\0\0\0\0", data, 8) != 0 &&
+				!(time_vms_to_asc (&date_length, date3, data)
+				 & 1))
+			{
+				strcpy (date3, "error converting date");
+			}
 			break;
 		case 0x47:
 			/* In my example, 4 bytes.  01 00c6 00.  */
@@ -653,18 +707,26 @@ size_t rsize;
 	}
 
 #ifdef	DEBUG
-	printf("recfmt = %d\n", recfmt);
-	printf("recatt = %d\n", recatt);
-	printf("reclen = %d\n", recsize);
-	printf("vfcsize = %d\n", vfcsize);
+	if (debugflag)
+	{
+		printf("recfmt = %d\n", recfmt);
+		printf("recatt = %d\n", recatt);
+		printf("reclen = %d\n", recsize);
+		printf("vfcsize = %d\n", vfcsize);
+	}
 #endif
 	/* I believe that "512" here is a fixed constant which should not
 	   depend on the device, the saveset, or anything like that.  */
 	filesize = (nblk-1)*512 + lnch;
 	blocks = (filesize + 511) / 512;
+	afilesize = ablk*512;
+	ablocks = ablk;
 #ifdef DEBUG
-	printf("nbk = %d, lnch = %d\n", nblk, lnch);
-	printf("filesize = 0x%x\n", filesize);
+	if (debugflag)
+	{
+		printf("nbk = %d, abk = %d, lnch = %d\n", nblk, ablk, lnch);
+		printf("filesize = 0x%x, afilesize = 0x%x\n", filesize, afilesize);
+	}
 #endif
 
 	/* open the file */
@@ -708,38 +770,91 @@ size_t rsize;
 	else
 		procf = 1;
 	if (tflag && procf && !flag_full)
-		printf ("%-52s %8d \n", filename, blocks);
-	if (tflag && procf && flag_full) {
-		printf ("%s\n", filename);
-		printf ("                      Size:       %d\n", blocks);
-		printf ("                      Owner: [%06o,%06o]\n",
-			grp, usr);
-
-		printf ("  Record format:      ");
-		switch (recfmt) {
-		case FAB_dol_C_UDF: printf ("(undefined)"); break;
-		case FAB_dol_C_FIX: printf ("(fixed)"); break;
-		case FAB_dol_C_VAR: printf ("Variable length");
-#if 0
-			/* This might be bytes 16 and 17 of the 0x34.
-			   But I'm not completely sure where it is stored.  */
-			if (?)
-				printf (", maximum %u bytes", ?);
+#ifdef HAVE_STARLET
+		printf ("%-52s %8d %s\n", filename, blocks, date4);
+#else
+		printf ("%-52s %8d\n", filename, blocks);
 #endif
+	if (tflag && procf && flag_full) {
+		printf ("%-30.30s File ID:  (%d,%d,%d)\n",
+			filename,fileid1,fileid2,fileid3);
+		printf ("  Size:       %6d/%-6d    Owner:    [%06o,%06o]\n",
+			blocks,ablocks,grp, usr);
+		printf ("  Protection: (");
+		for (i = 0; i <= 3; i++)
+		{
+			printf("%c:", "SOGW"[i]);
+			if (((protection >> (i * 4)) & 1) == 0)
+			{
+				printf("R");
+			}
+			if (((protection >> (i * 4)) & 2) == 0)
+			{
+				printf("W");
+			}
+			if (((protection >> (i * 4)) & 4) == 0)
+			{
+				printf("E");
+			}
+			if (((protection >> (i * 4)) & 8) == 0)
+			{
+				printf("D");
+			}
+			if (i != 3)
+			{
+				printf(",");
+			}
+		}
+		printf(")\n");
+
+#ifdef HAVE_STARLET
+		printf("  Created:  %s\n", date4);
+		printf("  Revised:  %s (%u)\n", date1, reviseno);
+		printf("  Expires:  %s\n", date2);
+		printf("  Backup:   %s\n", date3);
+#endif
+
+		printf ("  File Organization:  ");
+		switch (recfmt & 0xf0)
+		{
+		case FAB$C_SEQ: printf("Sequential"); break;
+		case FAB$C_REL: printf("Relative"); break;
+		case FAB$C_IDX: printf("Indexed"); break;
+		case FAB$C_HSH: printf("Hashed"); break;
+		default: printf("<Unknown %d>", recfmt &0xf0); break;
+		}
+		printf("\n");
+
+		printf("  File attributes:    Allocation %u, Extend %d",
+			ablocks, extension);
+		printf("\n");
+		printf ("  Record format:      ");
+		switch (recfmt & 0x0f) {
+		case FAB$C_UDF: printf ("(undefined)"); break;
+		case FAB$C_FIX: printf ("Fixed length");
+			if (recsize)
+				printf (" %u byte records", recsize);
 			break;
-		case FAB_dol_C_VFC: printf ("(VFC)"); break;
-		case FAB_dol_C_STM: printf ("Stream"); break;
-		case FAB_dol_C_STMLF: printf ("Stream_LF"); break;
-		case FAB_dol_C_STMCR: printf ("Stream_CR"); break;
+		case FAB$C_VAR: printf ("Variable length");
+			if (recsize)
+				printf (", maximum %u bytes", recsize);
+			break;
+		case FAB$C_VFC: printf ("VFC"); 
+			if (recsize)
+				printf (", maximum %u bytes", recsize);
+			break;
+		case FAB$C_STM: printf ("Stream"); break;
+		case FAB$C_STMLF: printf ("Stream_LF"); break;
+		case FAB$C_STMCR: printf ("Stream_CR"); break;
 		default: printf ("<unknown>"); break;
 		}
 		printf ("\n");
 
 		printf ("  Record attributes:  ");
-		if (recatt & (1 << FAB_dol_V_FTN)) printf ("Fortran ");
-		if (recatt & (1 << FAB_dol_V_CR)) printf ("Carriage return ");
-		if (recatt & (1 << FAB_dol_V_PRN)) printf ("Print file ");
-		if (recatt & (1 << FAB_dol_V_BLK)) printf ("Non-spanned");
+		if (recatt & FAB$M_FTN) printf ("Fortran ");
+		if (recatt & FAB$M_PRN) printf ("Print file ");
+		if (recatt & FAB$M_CR) printf ("Carriage return carriage control ");
+		if (recatt & FAB$M_BLK) printf ("Non-spanned");
 		printf ("\n");
 	}
 
@@ -770,7 +885,7 @@ unsigned short	rsize;
 	i = 0;
 	while (file_count+i < filesize && i < rsize) {
 		switch (recfmt) {
-		case FAB_dol_C_FIX:
+		case FAB$C_FIX:
 			if (reclen == 0) {
 				reclen = recsize;
 			}
@@ -779,8 +894,8 @@ unsigned short	rsize;
 			reclen--;
 			break;
 
-		case FAB_dol_C_VAR:
-		case FAB_dol_C_VFC:
+		case FAB$C_VAR:
+		case FAB$C_VFC:
 			if (reclen == 0) {
 				reclen = getu16 (&buffer[i]);
 #ifdef	NEWD
@@ -794,7 +909,7 @@ unsigned short	rsize;
 					fputc (buffer[i+j], f);
 				}
 				i += 2;
-				if (recfmt == FAB_dol_C_VFC) {
+				if (recfmt == FAB$C_VFC) {
 					if (flag_binary)
 						for (j = 0; j < vfcsize; j++) {
 							fputc (buffer[i+j], f);
@@ -803,7 +918,7 @@ unsigned short	rsize;
 					reclen -= vfcsize;
 				}
 			} else if (reclen == fix
-					&& recatt == (1 << FAB_dol_V_FTN)) {
+					&& recatt == FAB$M_FTN) {
 					/****
 					if (buffer[i] == '0')
 						fputc('\n', f);
@@ -827,8 +942,8 @@ unsigned short	rsize;
 			}
 			break;
 
-		case FAB_dol_C_STM:
-		case FAB_dol_C_STMLF:
+		case FAB$C_STM:
+		case FAB$C_STMLF:
 			if (reclen < 0) {
 				printf("SCREAM\n");
 			}
@@ -843,7 +958,7 @@ unsigned short	rsize;
 			fputc(c, f);
 			break;
 
-		case FAB_dol_C_STMCR:
+		case FAB$C_STMCR:
 			c = buffer[i++];
 			if (c == '\r' && !flag_binary)
 				fputc('\n', f);
@@ -893,11 +1008,13 @@ int	blocksize;
 		exit(1);
 	}
 	if (bsize != 0 && bsize != blocksize) {
-		fprintf(stderr, "Snark: Invalid block size\n");
+		fprintf(stderr, "Snark: Invalid block size got %d, expected %d)\n",
+			bsize, blocksize);
 		exit(1);
 	}
 #ifdef	DEBUG
-	printf("new block: i = %d, bsize = %d\n", i, bsize);
+	if (debugflag)
+		printf("new block: i = %d, bsize = %d\n", i, bsize);
 #endif
 
 	/* read the records */
@@ -909,20 +1026,24 @@ int	blocksize;
 		rtype = getu16 (record_header->brh_dol_w_rtype);
 		rsize = getu16 (record_header->brh_dol_w_rsize);
 #ifdef	DEBUG
-		printf("rtype = %d\n", rtype);
-		printf("rsize = %d\n", rsize);
-		printf("flags = 0x%x\n",
-		       getu32 (record_header->brh_dol_l_flags));
-		printf("addr = 0x%x\n",
-		       getu32 (record_header->brh_dol_l_address));
-		printf("i = %d\n", i);
+		if (debugflag)
+		{
+			printf("rtype = %d\n", rtype);
+			printf(" rsize = %d\n", rsize);
+			printf(" flags = 0x%x\n",
+			       getu32 (record_header->brh_dol_l_flags));
+			printf(" addr = 0x%x\n",
+			       getu32 (record_header->brh_dol_l_address));
+			printf(" i = %d\n", i);
+		}
 #endif
 
 		switch (rtype) {
 
 		case brh_dol_k_null:
 #ifdef	DEBUG
-			printf("rtype = null\n");
+			if (debugflag)
+				printf("rtype = null\n");
 #endif
 			/* This is the type used to pad to the end of
 			   a block.  */
@@ -930,50 +1051,62 @@ int	blocksize;
 
 		case brh_dol_k_summary:
 #ifdef	DEBUG
-			printf("rtype = summary\n");
+			if (debugflag)
+				printf("rtype = summary\n");
 #endif
 			process_summary (&block[i], rsize);
 			break;
 
 		case brh_dol_k_file:
 #ifdef	DEBUG
-			printf("rtype = file\n");
+			if (debugflag)
+				printf("rtype = file\n");
 #endif
 			process_file(&block[i], rsize);
 			break;
 
 		case brh_dol_k_vbn:
 #ifdef	DEBUG
-			printf("rtype = vbn\n");
+			if (debugflag)
+				printf("rtype = vbn\n");
 #endif
 			process_vbn(&block[i], rsize);
 			break;
 
 		case brh_dol_k_physvol:
 #ifdef	DEBUG
-			printf("rtype = physvol\n");
+			if (debugflag)
+				printf("rtype = physvol\n");
 #endif
 			break;
 
 		case brh_dol_k_lbn:
 #ifdef	DEBUG
-			printf("rtype = lbn\n");
+			if (debugflag)
+				printf("rtype = lbn\n");
 #endif
 			break;
 
 		case brh_dol_k_fid:
 #ifdef	DEBUG
-			printf("rtype = fid\n");
+			if (debugflag)
+				printf("rtype = fid\n");
 #endif
 			break;
 
 		default:
 			/* It is quite possible that we should just skip
 			   this without even printing a warning.  */
-			fprintf (stderr,
-				 " Warning: unrecognized record type\n");
-			fprintf (stderr, " record type = %d, size = %d\n",
-				 rtype, rsize);
+#ifdef DEBUG
+			if (debugflag)
+			{
+				fprintf (stderr,
+					 " Warning: unrecognized record type\n");
+				fprintf (stderr, " record type = %d, size = %d\n",
+					 rtype, rsize);
+			}
+#endif
+			break;
 		}
 #ifdef pyr
 		i = i + rsize;
@@ -1008,7 +1141,8 @@ rdhead()
 			nfound = 0;
 			sscanf(label+5, "%5d", &blocksize);
 #ifdef	DEBUG
-			printf("blocksize = %d\n", blocksize);
+			if (debugflag)
+				printf("blocksize = %d\n", blocksize);
 #endif
 		}
 	}
@@ -1053,7 +1187,7 @@ vmsbackup()
 	/* Nonzero if we are reading from a saveset on disk (as
 	   created by the /SAVE_SET qualifier to BACKUP) rather than from
 	   a tape.  */
-	int ondisk = 0;
+	int ondisk;
 
 	if (tapefile == NULL)
 		tapefile = def_tapefile;
@@ -1095,7 +1229,13 @@ vmsbackup()
 		/* process_block wants this to match the size which
 		   backup writes into the header.  Should it care in
 		   the ondisk case?  */
+#ifdef FIXME
+		/* This is already initialized in the variable definition,
+		   and having this here makes the '-b' option a do-nothing
+		   sort of thing, which makes it impossible to read
+		   RSTS/E save sets */
 		blocksize = 32256;
+#endif
 		block = malloc (blocksize);
 		if (block == (char *) 0) {
 			fprintf(stderr, "memory allocation for block failed\n");
@@ -1137,8 +1277,7 @@ vmsbackup()
 				eoffl = 1;
 			} else {
 				if (vflag || tflag)
-					printf ("\n\
-Total of %u files, %lu blocks\n",
+					printf ("\nTotal of %u files, %lu blocks\n",
 						nfiles, nblocks);
 				rdtail();
 				eoffl=rdhead();
@@ -1178,3 +1317,23 @@ Total of %u files, %lu blocks\n",
 	/* exit cleanly */
 	exit(0);
 }
+
+
+#ifdef DEBUG
+static void debug_dump(const unsigned char* buffer, int dsize, int dtype)
+{
+
+	if (debugflag)
+	{
+		printf(" dsize = %x/%d dtype = %x/%d: ",
+			dsize, dsize, dtype, dtype);
+		while(dsize--)
+		{
+			printf("%x/%d, ", *buffer, *buffer);
+			buffer++;
+		}
+		printf("\n");
+	}
+}
+#endif
+

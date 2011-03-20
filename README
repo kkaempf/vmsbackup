@@ -1,4 +1,4 @@
-This progam reads a VMS backuptape.
+This program reads a VMS backup tape.
 
 WARNING: This version is still well short of the full features of
 BACKUP.  Hopefully this file should somewhat document the various
@@ -9,11 +9,9 @@ If you have patches to send in or reports of success and/or failure, I
 guess for now the place to send them is kingdon@cyclic.com.  In the
 future there is a good chance there will be some mailing list for
 VMSBACKUP or for "Free-VMS file utilities" or some such category; you
-might want to see if http://www.free-vms.org/ has something more
+might want to see if http://www.lp.se/free-vms/ has something more
 up-to-date than this paragraph (as of this writing the only thing
-there is that BACKUP is listed in the task list).  Currently the
-latest VMSBACKUP release should be at
-    ftp://ftp.wku.edu/vms/free-vms/testing
+there is that BACKUP is listed in the task list).
 
 To find out what version you have on unix use the -V option.  On VMS,
 ANALYZE/IMAGE/HEADER VMSBACKUP.EXE and look for the part where it says
@@ -35,12 +33,6 @@ disk).  Maybe it could be done if you mount the tape non-foreign, but I don't
 know of anyone who has tried that.  Reading tapes does work on non-VMS
 systems (at least with version 3.0; presumably with more recent versions too).
 
-* Dates are not printed on non-VMS systems; where the dates would be
-there is nothing.  This can be fixed if someone wants to write a
-portable equivalent for SYS$ASCTIM.
-
-* We do not yet print dates for files (just the date for the saveset itself).
-
 * One cannot specify a file to list to, as in /LIST=file.
 
 * /LIST/FULL prints much less than BACKUP; I haven't decoded most of
@@ -54,20 +46,11 @@ the testsuite on vmsbackup and on BACKUP and make sure they agree).
 Extraction is even worse; anything other than a text file is unlikely
 to get extracted in any useful manner.
 
-Related software:
-
-From "OpenVMS Freeware (VS0185)", there is a FASTBACK program to
-access BACK/PHYS or HSC <Backup> saves as disks.  FASTBACK relates to
-physical backups (or images of disks made with tools such as the unix
-dd), and VMSBACKUP is for regular (saveset) backups.
-
 TODO:
 
 * Anyone want to write a testsuite?
 
 * Implement lots more features.
-
-* Write documentation, in VMS HELP format (and/or HTML).
 
 Open questions:
 
@@ -76,7 +59,7 @@ DEC or from http://www.bbc.com or from anyone else?
 
 History:
 
-The tape program is orginally written by John Douglas Carey and
+The tape program is originally written by John Douglas Carey and
 the pattern matching routine by some unknown on the net. 
 
 The remote tape option use the rmtlib from mod.sources.

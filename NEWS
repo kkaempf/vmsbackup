@@ -1,9 +1,32 @@
-Changes since version 4.1:
+Changes since version 4.1: (kth@srv.net)
 
-* Very few; the only significant change is fixing a bug resulting from an
-uninitialized variable, as noted in ChangeLog.
+* Use the include files <descrip.h> and <fabdef.h> instead of many
+hard coded constants. It must now be compiled with the
+'-fdollars-in-identifiers' flag because of this.
 
-Changes from version 3.0.1 to version 4.1:
+* Added handling of dates/times. It now needs to be linked against
+the 'starlet' library.
+
+* Add file creation date to the -t printout.
+
+* Modify the -F option so that it more closely resembles a DIR/FULL
+listing from a real VMS 5.5-2 system, and add several missing
+items (Dates, file id, various attributes, etc).
+
+* Added a '-D' flag so that I didn't have to keep switching between
+the DEBUG version and the regular version (Only does anything when
+the program is compiled with DEBUG defined).
+
+* Rewrote the Makefile because I couldn't get the original to work.
+
+* Increased the size of the date strings from 23 to 24 to make room
+for the terminating NULL.
+
+* Modified so it doesn't die when given a RSTS/E save set.
+
+* Able to use getopt_long for long option names.
+
+Changes since version 3.0.1:
 
 * Merged in changes from version 3.1 from S.J. Tappin of the
 University of Birmingham.  .HLB is now on the list of file extensions
@@ -26,7 +49,7 @@ qualifiers of BACKUP.
 well as on tape.
 
 * More portable (in particular, no longer depends on things like
-#ifdef sun to determine byte-order, and no longer depends on the
+#ifdef sun to determined byte-order, and no longer depends on the
 size of host data types like short and long).
 
 Changes which were in version 3.0:

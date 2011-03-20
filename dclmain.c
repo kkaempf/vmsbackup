@@ -44,7 +44,7 @@ char *argv[];
 	gargc = 0;
 	goptind = 0;
 
-	cflag=dflag=eflag=sflag=tflag=vflag=wflag=xflag=0;
+	cflag=dflag=eflag=sflag=tflag=vflag=wflag=xflag=debugflag=0;
 	flag_full = 0;
 	if (cli$get_value (&file1, &result) & 1) {
 		if (cli$present (&q_saveset) & 1) {
