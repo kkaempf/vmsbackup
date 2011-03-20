@@ -59,11 +59,13 @@
 #endif
 #include	<sys/file.h>
 
-#ifndef __vax
-/* The help claims that mkdir is declared in stdlib.h but it doesn't
-   seem to be true.  AXP/VMS 6.2, DECC ?.?.  On the other hand, VAX/VMS 6.2
-   seems to declare it in a way which conflicts with this definition.
-   This is starting to sound like a bad dream.  */
+#if 0
+/* At one point declaring mkdir was necessary (the help claimed that
+   mkdir was declared in stdlib.h but it didn't seem to be true), for
+   AXP/VMS 6.2, DECC ?.?.  Other reports are that the declaration
+   conflicts with others (VAX/VMS 6.2; AXP/VMS 6.2 and DECC 5.5).  So
+   we'll try just leaving it out and seeing how that works.  */
+
 int mkdir ();
 #endif
 
@@ -1051,7 +1053,7 @@ vmsbackup()
 	/* Nonzero if we are reading from a saveset on disk (as
 	   created by the /SAVE_SET qualifier to BACKUP) rather than from
 	   a tape.  */
-	int ondisk;
+	int ondisk = 0;
 
 	if (tapefile == NULL)
 		tapefile = def_tapefile;

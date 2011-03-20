@@ -1,4 +1,9 @@
-Changes since version 3.0.1:
+Changes since version 4.1:
+
+* Very few; the only significant change is fixing a bug resulting from an
+uninitialized variable, as noted in ChangeLog.
+
+Changes from version 3.0.1 to version 4.1:
 
 * Merged in changes from version 3.1 from S.J. Tappin of the
 University of Birmingham.  .HLB is now on the list of file extensions
@@ -21,7 +26,7 @@ qualifiers of BACKUP.
 well as on tape.
 
 * More portable (in particular, no longer depends on things like
-#ifdef sun to determined byte-order, and no longer depends on the
+#ifdef sun to determine byte-order, and no longer depends on the
 size of host data types like short and long).
 
 Changes which were in version 3.0:

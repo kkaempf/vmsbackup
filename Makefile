@@ -23,10 +23,17 @@ clean:
 	rm -f vmsbackup *.o core
 shar:
 	shar -a $(DISTFILES) > vmsbackup.shar
-dist:
+vmsbackup.tar: ${DISTFILES}
 	rm -rf vmsbackup-dist
 	mkdir vmsbackup-dist
 	for i in $(DISTFILES); do \
 	  ln $${i} vmsbackup-dist; \
 	done
 	tar chf vmsbackup.tar vmsbackup-dist
+# We don't put this in a subdirectory, because not doing so seems
+# traditional for .zip files.  That might just be a throwback to the
+# (ancient) days before zip supported subdirectories, I don't know.
+# If you don't have a copy of zip, see 
+#   http://www.cdrom.com/pub/infozip/Info-ZIP.html
+vmsbackup.zip: ${DISTFILES}
+	zip vmsbackup.zip ${DISTFILES}

@@ -1,6 +1,6 @@
 /* This is the version of main() for POSIX.2 (getopt) style arguments.  */
 
-char *version = "VMSBACKUP4.1";
+char *version = "VMSBACKUP4.1.1";
 
 #include <stdio.h>
 #include <stdlib.h>
