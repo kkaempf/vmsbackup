@@ -18,22 +18,22 @@ LONGOPT=-DHAVE_GETOPTLONG
 #
 # Choose this set if you do NOT have starlet available
 #
-#CFLAGS=$(REMOTE) $(LONGOPT) -fdollars-in-identifiers -O
-#LDLIBS=
+CFLAGS=$(REMOTE) $(LONGOPT) -fdollars-in-identifiers -g
+LDLIBS=
 #
 # Choose this set if you DO have starlet available
 #
-STARLETDIR=/home/kevin/basic/starlet
-CFLAGS=$(REMOTE) $(LONGOPT) -fdollars-in-identifiers -I $(STARLETDIR) -DHAVE_STARLET -g -DDEBUG
-LDLIBS=$(STARLETDIR)/starlet.a
+#STARLETDIR=/home/kevin/basic/starlet
+#CFLAGS=$(REMOTE) $(LONGOPT) -fdollars-in-identifiers -I $(STARLETDIR) -DHAVE_STARLET -g -DDEBUG
+#LDLIBS=$(STARLETDIR)/starlet.a
 #
 ##############################
 #
 OWNER=tar                      # user for remote tape access
 MODE=4755
-BINDIR=/usr/local/bin
-MANSEC=l
-MANDIR=/usr/man/man$(MANSEC)
+BINDIR=/usr/bin
+MANSEC=1
+MANDIR=/usr/share/man/man$(MANSEC)
 DISTFILES=README vmsbackup.1 Makefile vmsbackup.c match.c NEWS  build.com dclmain.c getoptmain.c vmsbackup.cld vmsbackup.h  sysdep.h
 
 vmsbackup: vmsbackup.o match.o getoptmain.o

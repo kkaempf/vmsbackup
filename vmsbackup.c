@@ -967,7 +967,7 @@ unsigned short	rsize;
 			break;
 
 		default:
-			fclose(f);
+			fclose(f); f = NULL;
 			remove(filename);
 			fprintf(stderr, "Invalid record format = %d\n", recfmt);
 			return;
