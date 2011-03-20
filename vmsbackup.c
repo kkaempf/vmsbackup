@@ -290,7 +290,7 @@ char	*fn;
 	if(procf && wflag) {
 		printf("extract %s [ny]",filename);
 		fflush(stdout);
-		gets(ans);
+		fgets(ans, sizeof(ans), stdin);
 		if(*ans != 'y') procf = 0;
 	}
 	if(procf)
