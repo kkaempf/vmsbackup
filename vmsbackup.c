@@ -367,7 +367,6 @@ size_t rsize;
 	unsigned long blksz = 0;
 	unsigned int grpsz = 0;
 	unsigned int bufcnt = 0;
-	int i;
 
 	if (!tflag)
 		return;
@@ -490,18 +489,18 @@ size_t rsize;
 		c += dsize + 4;
 	}
   end_of_summary:
-	printf ("Save set:          %.*s\n", saveset_size, saveset);
-	printf ("Written by:        %.*s\n", written_by_size, written_by);
+	printf ("Save set:          %.*s\n", (int)saveset_size, saveset);
+	printf ("Written by:        %.*s\n", (int)written_by_size, written_by);
 	printf ("UIC:               [%06o,%06o]\n", grp, usr);
 	printf ("Date:              %.*s\n", date_length, date);
-	printf ("Command:           %.*s\n", command_size, command);
+	printf ("Command:           %.*s\n", (int)command_size, command);
 	printf ("Operating system:  %s version %.*s\n", os,
-		osversion_size, osversion);
-	printf ("BACKUP version:    %.*s\n", backup_version_size,
+		(int)osversion_size, osversion);
+	printf ("BACKUP version:    %.*s\n", (int)backup_version_size,
 		backup_version);
-	printf ("CPU ID register:   %08x\n", id);
-	printf ("Node name:         %.*s\n", nodename_size, nodename);
-	printf ("Written on:        %.*s\n", written_on_size, written_on);
+	printf ("CPU ID register:   %08lx\n", id);
+	printf ("Node name:         %.*s\n", (int)nodename_size, nodename);
+	printf ("Written on:        %.*s\n", (int)written_on_size, written_on);
 	printf ("Block size:        %lu\n", blksz);
 	if (grpsz != 0)
 		printf ("Group size:        %u\n", grpsz);
@@ -515,7 +514,7 @@ process_file(buffer, rsize)
 char	*buffer;
 size_t rsize;
 {
-	int	i, n;
+	int	i;
 	char	*p, *q;
 	long nblk;
 	long ablk;
@@ -529,7 +528,6 @@ size_t rsize;
 	char date3[24] = " <None specified>";
 	char date4[24] = " <None specified>";
 	short date_length = 0;
-	unsigned int reviseno = 0;
 	unsigned int fileid1 = 0, fileid2 = 0, fileid3 = 0;
 	unsigned int extension = 0;
 	unsigned int protection = 0;
@@ -651,7 +649,7 @@ size_t rsize;
 			break;
 		case 0x35:
 			/* In my example, 2 bytes.  04 00.  */
-			reviseno = getu16 (&data[0]);
+			/* reviseno = getu16 (&data[0]); ! unused */
 			break;
 		case 0x36:
 			/* In my example, 8 bytes.  Presumably a date.  */
@@ -771,14 +769,14 @@ size_t rsize;
 		procf = 1;
 	if (tflag && procf && !flag_full)
 #ifdef HAVE_STARLET
-		printf ("%-52s %8d %s\n", filename, blocks, date4);
+		printf ("%-52s %8ld %s\n", filename, blocks, date4);
 #else
-		printf ("%-52s %8d\n", filename, blocks);
+		printf ("%-52s %8ld\n", filename, blocks);
 #endif
 	if (tflag && procf && flag_full) {
 		printf ("%-30.30s File ID:  (%d,%d,%d)\n",
 			filename,fileid1,fileid2,fileid3);
-		printf ("  Size:       %6d/%-6d    Owner:    [%06o,%06o]\n",
+		printf ("  Size:       %6ld/%-6ld    Owner:    [%06o,%06o]\n",
 			blocks,ablocks,grp, usr);
 		printf ("  Protection: (");
 		for (i = 0; i <= 3; i++)
@@ -825,7 +823,7 @@ size_t rsize;
 		}
 		printf("\n");
 
-		printf("  File attributes:    Allocation %u, Extend %d",
+		printf("  File attributes:    Allocation %lu, Extend %d",
 			ablocks, extension);
 		printf("\n");
 		printf ("  Record format:      ");
@@ -872,6 +870,7 @@ size_t rsize;
  *  process a virtual block record (file record)
  *
  */
+void
 process_vbn(buffer, rsize)
 char		*buffer;
 unsigned short	rsize;
@@ -1002,13 +1001,13 @@ int	blocksize;
 	/* check the validity of the header block */
 	if (bhsize != sizeof(struct bbh)) {
 		fprintf (stderr,
-			 "Invalid header block size: expected %d got %d\n",
+			 "Invalid header block size: expected %ld got %d\n",
 			 sizeof (struct bbh),
 			 bhsize);
 		exit(1);
 	}
 	if (bsize != 0 && bsize != blocksize) {
-		fprintf(stderr, "Snark: Invalid block size got %d, expected %d)\n",
+		fprintf(stderr, "Snark: Invalid block size got %ld, expected %d)\n",
 			bsize, blocksize);
 		exit(1);
 	}
@@ -1182,7 +1181,7 @@ rdtail()
 void
 vmsbackup()
 {
-	int	c, i, eoffl;
+	int	i, eoffl;
 
 	/* Nonzero if we are reading from a saveset on disk (as
 	   created by the /SAVE_SET qualifier to BACKUP) rather than from
