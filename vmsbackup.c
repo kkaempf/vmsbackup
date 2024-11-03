@@ -271,9 +271,9 @@ char	*fn;
 			if (s == ']')
 				break;
 		}
-		*q++;
+		q++;
 	}
-	*q++;
+	q++;
 	if(!dflag) p=q;
 	/* strip off the version number */
 	while (*q && *q != ';') {
