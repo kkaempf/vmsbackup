@@ -4,16 +4,15 @@ char *version = "VMSBACKUP4.2";
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <getopt.h>
 #include "vmsbackup.h"
-#include "getopt.h"
+#include "sysdep.h"
 
 #ifdef HAVE_STARLET
 #include "descrip.h"
 #endif
 
-void
-usage (progname)
-char *progname;
+static void usage (char *progname)
 {
 	fprintf (stderr, "Usage:  %s -{tx}[cdevwF][-b blocksize][-s setnumber][-f tapefile]\n",
 		 progname);
@@ -61,10 +60,7 @@ static const struct option OptionListLong[] =
 };
 #endif
 
-int
-main (argc, argv)
-int argc;
-char *argv[];
+int main (int argc, char *argv[])
 {
 	char *progname;
 	int c;
@@ -172,11 +168,7 @@ char *argv[];
    ASCBUFFER must be big enough for 23 characters.
    Returns: condition code.  */
 #ifdef HAVE_STARLET
-int
-time_vms_to_asc (asclength, ascbuffer, srctime)
-    short *asclength;
-    char *ascbuffer;
-    void *srctime;
+int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime)
 {
     struct dsc$descriptor buffer;
 
@@ -187,11 +179,7 @@ time_vms_to_asc (asclength, ascbuffer, srctime)
     return sys$asctim (asclength, &buffer, srctime, 0);
 }
 #else
-int
-time_vms_to_asc (asclength, ascbuffer, srctime)
-    short *asclength;
-    char *ascbuffer;
-    void *srctime;
+int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime)
 {
     *asclength = 0;
     return 1;

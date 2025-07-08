@@ -42,22 +42,22 @@
 #include <fcntl.h>
 #endif
 
-#include	<stdio.h>
-#include	<ctype.h>
-#include	<errno.h>
-#include	<stdlib.h>
+#include <stdio.h>
+#include <ctype.h>
+#include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include	<sys/types.h>
+#include <sys/types.h>
 #if HAVE_MT_IOCTLS
-#include	<sys/ioctl.h>
-#include	<sys/mtio.h>
+#include <sys/ioctl.h>
+#include <sys/mtio.h>
 #endif
 #ifdef REMOTE
-#include	<local/rmt.h>
-#include	<sys/stat.h>
+#include <local/rmt.h>
+#include <sys/stat.h>
 #endif
-#include	<sys/file.h>
+#include <sys/file.h>
 
 #include "fabdef.h"
 
@@ -66,18 +66,17 @@
    seem to be true.  AXP/VMS 6.2, DECC ?.?.  On the other hand, VAX/VMS 6.2
    seems to declare it in a way which conflicts with this definition.
    This is starting to sound like a bad dream.  */
-int mkdir ();
+int mkdir (char *path, int mode);
 #endif
 
 #include "vmsbackup.h"
+#include "match.h"
 #include "sysdep.h"
 
 #ifdef DEBUG
 static void debug_dump(const unsigned char* buffer, int dsize, int dtype);
 #endif
 
-int match ();
-char *strlocase ();
 
 /* Byte-swapping routines.  Note that these do not depend on the size
    of datatypes such as short, long, etc., nor do they require us to
@@ -87,17 +86,13 @@ char *strlocase ();
    add them if needed.  They are, of course little-endian as that is
    the byteorder used by all integers in a BACKUP saveset.  */
 
-unsigned long
-getu32 (addr)
-unsigned char *addr;
+unsigned long getu32 (char *addr)
 {
 	return (((((unsigned long)addr[3] << 8) | addr[2]) << 8)
 		| addr[1]) << 8 | addr[0];
 }
 
-unsigned int
-getu16 (addr)
-unsigned char *addr;
+unsigned int getu16 (char *addr)
 {
 	return (addr[1] << 8) | addr[0];
 }
@@ -151,7 +146,7 @@ struct brh {
 struct bsa {
 	unsigned char	bsa_dol_w_size[2];
 	unsigned char	bsa_dol_w_type[2];
-	char	bsa_dol_t_text[1];
+        char	        bsa_dol_t_text[1];
 } *data_item;
 
 #ifdef	STREAM
@@ -226,7 +221,7 @@ int	setnr;
 #define	LABEL_SIZE	80
 char	label[LABEL_SIZE];
 
-char	*block;
+unsigned char	*block;
 /* Default blocksize, as specified in -b option.  */
 int	blocksize = 32256;
 
@@ -234,11 +229,9 @@ int	blocksize = 32256;
 struct	mtop	op;
 #endif
 
-int typecmp ();
+static int typecmp(char *str);
 
-FILE *
-openfile(fn)
-char	*fn;
+FILE *openfile(char *fn)
 {
 	char	ufn[256];
 	char	ans[80];
@@ -300,12 +293,10 @@ char	*fn;
 		return(NULL);
 }
 
-int
-typecmp(str)    /* Compare the filename type in str with our list
+static int typecmp(char *str)    /* Compare the filename type in str with our list
                    of file type to be ignored.  Return 0 if the
                    file is to be ignored, return 1 if the
                    file is not in our list and should not be ignored. */
-register char   *str;
 {
         static char *type[] = {
                 "exe",          /* vms executable image */
@@ -333,10 +324,7 @@ register char   *str;
         return(1);                      /* no match found */
 }
 
-void
-process_summary (buffer, rsize)
-unsigned char *buffer;
-size_t rsize;
+void process_summary (unsigned char *buffer, size_t rsize)
 {
 	size_t c;
 	size_t dsize;
@@ -378,8 +366,8 @@ size_t rsize;
 	}
 	c = 2;
 	while (c < rsize) {
-		dsize = getu16 (((struct bsa *)&buffer[c])->bsa_dol_w_size);
-		type = getu16 (((struct bsa *)&buffer[c])->bsa_dol_w_type);
+		dsize = getu16 ((char *)((struct bsa *)&buffer[c])->bsa_dol_w_size);
+		type = getu16 ((char *)((struct bsa *)&buffer[c])->bsa_dol_w_type);
 		text = ((struct bsa *)&buffer[c])->bsa_dol_t_text;
 
 		/* Probably should define constants for the cases in this
@@ -509,18 +497,16 @@ size_t rsize;
 	   and the list of files that follows.  */
 }
 
-void
-process_file(buffer, rsize)
-char	*buffer;
-size_t rsize;
+void process_file(unsigned char *buffer, size_t rsize)
 {
 	int	i;
-	char	*p, *q;
+	unsigned char *p;
+        char *q;
 	long nblk;
 	long ablk;
 	short	dsize, lnch;
 	short dtype;
-	char *data;
+	unsigned char *data;
 	char *cfname;
 	char *sfilename;
 	char date1[24] = " <None specified>";
@@ -553,9 +539,9 @@ size_t rsize;
 
 	c = 2;
 	while (c < rsize) {
-		dsize = getu16 (((struct bsa *) &buffer[c])->bsa_dol_w_size);
-		dtype = getu16 (((struct bsa *)&buffer[c])->bsa_dol_w_type);
-		data = ((struct bsa *)&buffer[c])->bsa_dol_t_text;
+		dsize = getu16 ((char *)((struct bsa *) &buffer[c])->bsa_dol_w_size);
+		dtype = getu16 ((char *)((struct bsa *)&buffer[c])->bsa_dol_w_type);
+		data = (unsigned char *)((struct bsa *)&buffer[c])->bsa_dol_t_text;
 
 #ifdef DEBUG
 		debug_dump(data, dsize, dtype);
@@ -583,9 +569,9 @@ size_t rsize;
 		case 0x2c:
 			/* In my example, 6 bytes,
 			   0x7a 0x2 0x57 0x0 0x1 0x1.  */
-			fileid1 = getu16(data);
-			fileid2 = getu16(data + 2);
-			fileid3 = getu16(data + 4);
+			fileid1 = getu16((char *)data);
+			fileid2 = getu16((char *)data + 2);
+			fileid3 = getu16((char *)data + 4);
 			break;
 		case 0x2e:
 			/* In my example, 4 bytes, 0x00000004.  Maybe
@@ -593,38 +579,38 @@ size_t rsize;
 			break;
 		case 0x2f:
 			if (dsize == 4) {
-				usr = getu16 (data);
-				grp = getu16 (data + 2);
+				usr = getu16 ((char *)data);
+				grp = getu16 ((char *)data + 2);
 			}
 			break;
 		case 0x34:
 			recfmt = data[0];
 			recatt = data[1];
-			recsize = getu16 (&data[2]);
+			recsize = getu16 ((char *)&data[2]);
 			/* bytes 4-7 unaccounted for.  */
-			ablk = getu16 (&data[6]);
-			nblk = getu16 (&data[10])
+			ablk = getu16 ((char *)&data[6]);
+			nblk = getu16 ((char *)&data[10])
 				/* Adding in the following amount is a
 				   change that I brought over from
 				   vmsbackup 3.1.  The comment there
 				   said "subject to confirmation from
 				   backup expert here" but I'll put it
 				   in until someone complains.  */
-				+ (64 * 1024) * getu16 (&data[8]);
-			lnch = getu16 (&data[12]);
+				+ (64 * 1024) * getu16 ((char *)&data[8]);
+			lnch = getu16 ((char *)&data[12]);
 			/* byte 14 unaccounted for */
 			vfcsize = data[15];
 			if (vfcsize == 0)
 				vfcsize = 2;
 			/* bytes 16-31 unaccounted for */
-			extension = getu16 (&data[18]);
+			extension = getu16 ((char *)&data[18]);
 			break;
 		case 0x2d:
 			/* In my example, 6 bytes.  hex 2b3c 2000 0000.  */
 			break;
 		case 0x30:
 			/* In my example, 2 bytes.  0x44 0xee.  */
-			protection = getu16 (&data[0]);
+			protection = getu16 ((char *)&data[0]);
 			break;
 		case 0x31:
 			/* In my example, 2 bytes.  hex 0000.  */
@@ -649,7 +635,7 @@ size_t rsize;
 			break;
 		case 0x35:
 			/* In my example, 2 bytes.  04 00.  */
-			/* reviseno = getu16 (&data[0]); ! unused */
+			/* reviseno = getu16 ((char *)&data[0]); ! unused */
 			break;
 		case 0x36:
 			/* In my example, 8 bytes.  Presumably a date.  */
@@ -870,10 +856,7 @@ size_t rsize;
  *  process a virtual block record (file record)
  *
  */
-void
-process_vbn(buffer, rsize)
-char		*buffer;
-unsigned short	rsize;
+void process_vbn(unsigned char *buffer, unsigned short rsize)
 {
 	int	c, i;
 	int j;
@@ -896,7 +879,7 @@ unsigned short	rsize;
 		case FAB$C_VAR:
 		case FAB$C_VFC:
 			if (reclen == 0) {
-				reclen = getu16 (&buffer[i]);
+				reclen = getu16 ((char *)&buffer[i]);
 #ifdef	NEWD
 				fprintf(lf, "---\n");
 				fprintf(lf, "reclen = %d\n", reclen);
@@ -980,10 +963,7 @@ unsigned short	rsize;
  *  process a backup block
  *
  */
-void
-process_block(block, blocksize)
-char	*block;
-int	blocksize;
+void process_block(unsigned char *block, int blocksize)
 {
 
 	unsigned short	bhsize, rsize, rtype;
@@ -995,8 +975,8 @@ int	blocksize;
 	block_header = (struct bbh *) &block[i];
 	i += sizeof(struct bbh);
 
-	bhsize = getu16 (block_header->bbh_dol_w_size);
-	bsize = getu32 (block_header->bbh_dol_l_blocksize);
+	bhsize = getu16 ((char *)block_header->bbh_dol_w_size);
+	bsize = getu32 ((char *)block_header->bbh_dol_l_blocksize);
 
 	/* check the validity of the header block */
 	if (bhsize != sizeof(struct bbh)) {
@@ -1022,17 +1002,17 @@ int	blocksize;
 		record_header = (struct brh *) &block[i];
 		i += sizeof(struct brh);
 
-		rtype = getu16 (record_header->brh_dol_w_rtype);
-		rsize = getu16 (record_header->brh_dol_w_rsize);
+		rtype = getu16 ((char *)record_header->brh_dol_w_rtype);
+		rsize = getu16 ((char *)record_header->brh_dol_w_rsize);
 #ifdef	DEBUG
 		if (debugflag)
 		{
 			printf("rtype = %d\n", rtype);
 			printf(" rsize = %d\n", rsize);
 			printf(" flags = 0x%x\n",
-			       getu32 (record_header->brh_dol_l_flags));
+			       getu32 ((char *)record_header->brh_dol_l_flags));
 			printf(" addr = 0x%x\n",
-			       getu32 (record_header->brh_dol_l_address));
+			       getu32 ((char *)record_header->brh_dol_l_address));
 			printf(" i = %d\n", i);
 		}
 #endif
@@ -1115,8 +1095,7 @@ int	blocksize;
 	}
 }
 
-int
-rdhead()
+int rdhead(void)
 {
 	int i, nfound;
 	char name[80];
@@ -1148,16 +1127,15 @@ rdhead()
 	if((vflag || tflag) && !nfound) 
 		printf("Saveset name: %s   number: %d\n",name,setnr);
 	/* get the block buffer */
-	block = (char *) malloc(blocksize);
-	if (block == (char *) 0) {
+	block = (unsigned char *) malloc(blocksize);
+	if (block == (unsigned char *) 0) {
 		fprintf(stderr, "memory allocation for block failed\n");
 		exit(1);
 	}
 	return(nfound);
 }
 
-void
-rdtail()
+void rdtail(void)
 {
 	int i;
 	char name[80];
@@ -1178,8 +1156,7 @@ rdtail()
 /* Perform the actual operation.  The way this works is that main () parses
    the arguments, sets up the global variables like cflags, and calls us.
    Does not return--it always calls exit ().  */
-void
-vmsbackup()
+void vmsbackup(void)
 {
 	int	i, eoffl;
 
@@ -1236,7 +1213,7 @@ vmsbackup()
 		blocksize = 32256;
 #endif
 		block = malloc (blocksize);
-		if (block == (char *) 0) {
+		if (block == (unsigned char *) 0) {
 			fprintf(stderr, "memory allocation for block failed\n");
 			exit(1);
 		}

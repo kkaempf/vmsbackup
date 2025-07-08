@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#include "match.h"
 
 #define ASTERISK '*'		/* The '*' metacharacter */
 #define QUESTION '?'		/* The '?' metacharacter */
@@ -13,15 +14,9 @@
    letters, I think.  */
 #define IS_UC(ch)  (ch >= 'A' && ch <= 'Z')
 
-typedef int BOOLEAN;
-#define VOID void
-#define TRUE 1
-#define FALSE 0
-#define EOS '\000'
-
-static BOOLEAN do_list ();
-static char nextch ();
-static VOID list_parse ();
+static BOOLEAN do_list (char *string, char *pattern);
+static char nextch (char **patp);
+static VOID list_parse (char **patp, char *lowp, char *highp);
 
 
 /*
@@ -76,9 +71,7 @@ static VOID list_parse ();
  *
  */
 
-BOOLEAN match (string, pattern)
-register char *string;
-register char *pattern;
+BOOLEAN match (char *string, char *pattern)
 {
     register BOOLEAN ismatch;
 
@@ -193,9 +186,7 @@ register char *pattern;
  *
  */
 
-static BOOLEAN do_list (string, pattern)
-register char *string;
-char *pattern;
+static BOOLEAN do_list (char *string, char *pattern)
 {
     register BOOLEAN ismatch;
     register BOOLEAN if_found;
@@ -255,10 +246,7 @@ char *pattern;
  *
  */
 
-static VOID list_parse (patp, lowp, highp)
-char **patp;
-char *lowp;
-char *highp;
+static VOID list_parse (char **patp, char *lowp, char *highp)
 {
     *lowp = nextch (patp);
     if (**patp == '-') {
@@ -292,8 +280,7 @@ char *highp;
  *
  */
 
-static char nextch (patp)
-char **patp;
+static char nextch (char **patp)
 {
     register char ch;
     register char chsum;
@@ -316,9 +303,7 @@ char **patp;
     return (ch);
 }
 
-char *
-strlocase(str)
-char *str;
+char *strlocase(char *str)
 {
 	int  i;
 

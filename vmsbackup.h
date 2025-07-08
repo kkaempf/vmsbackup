@@ -8,7 +8,7 @@ extern char *tapefile;
 extern int selset;
 extern int blocksize;
 
-extern void vmsbackup ();
+extern void vmsbackup (void);
 
 extern char **gargv;
 extern int goptind, gargc;
