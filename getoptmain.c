@@ -1,6 +1,6 @@
 /* This is the version of main() for POSIX.2 (getopt) style arguments.  */
 
-char *version = "VMSBACKUP4.2";
+char *version = "VMSBACKUP4.3";
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,6 +31,7 @@ static void usage (char *progname)
 	"\tF\tfull\t\tFull detail in listing\n"
 	"\tV\tversion\t\tShow program version number\n"
 	"\tB\tbinary\t\tExtract as binary files\n"
+	"\tD\tdebug\t\tPrint debug information (if compiled with DEBUG)\n"
 	"\t?\thelp\t\tDisplay this help message\n");
 #endif
 }

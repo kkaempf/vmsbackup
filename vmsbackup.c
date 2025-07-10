@@ -367,6 +367,10 @@ void process_summary (unsigned char *buffer, size_t rsize)
 	c = 2;
 	while (c < rsize) {
 		dsize = getu16 ((char *)((struct bsa *)&buffer[c])->bsa_dol_w_size);
+	        if (dsize < 0) {
+		    fprintf(stderr, "Corrupted backup file, size is negative\n");
+		    return;
+		}
 		type = getu16 ((char *)((struct bsa *)&buffer[c])->bsa_dol_w_type);
 		text = ((struct bsa *)&buffer[c])->bsa_dol_t_text;
 
@@ -375,7 +379,7 @@ void process_summary (unsigned char *buffer, size_t rsize)
 		   have "official" names we should be using or anything
 		   like that.  */
 #ifdef DEBUG
-		debug_dump(text, dsize, type);
+		debug_dump((unsigned char *)text, dsize, type);
 #endif
 		switch (type) {
 		case 0:
@@ -536,7 +540,7 @@ void process_file(unsigned char *buffer, size_t rsize)
 		printf("Snark: invalid data header\n");
 		exit(1);
 	}
-
+fprintf(stderr, "process_file, expecting %ld bytes\n", rsize);
 	c = 2;
 	while (c < rsize) {
 		dsize = getu16 ((char *)((struct bsa *) &buffer[c])->bsa_dol_w_size);
@@ -708,7 +712,7 @@ void process_file(unsigned char *buffer, size_t rsize)
 #ifdef DEBUG
 	if (debugflag)
 	{
-		printf("nbk = %d, abk = %d, lnch = %d\n", nblk, ablk, lnch);
+		printf("nbk = %ld, abk = %ld, lnch = %d\n", nblk, ablk, lnch);
 		printf("filesize = 0x%x, afilesize = 0x%x\n", filesize, afilesize);
 	}
 #endif
@@ -993,7 +997,7 @@ void process_block(unsigned char *block, int blocksize)
 	}
 #ifdef	DEBUG
 	if (debugflag)
-		printf("new block: i = %d, bsize = %d\n", i, bsize);
+		printf("new block: i = %ld, bsize = %ld\n", i, bsize);
 #endif
 
 	/* read the records */
@@ -1009,11 +1013,11 @@ void process_block(unsigned char *block, int blocksize)
 		{
 			printf("rtype = %d\n", rtype);
 			printf(" rsize = %d\n", rsize);
-			printf(" flags = 0x%x\n",
+			printf(" flags = 0x%lx\n",
 			       getu32 ((char *)record_header->brh_dol_l_flags));
-			printf(" addr = 0x%x\n",
+			printf(" addr = 0x%lx\n",
 			       getu32 ((char *)record_header->brh_dol_l_address));
-			printf(" i = %d\n", i);
+			printf(" i = %ld\n", i);
 		}
 #endif
 

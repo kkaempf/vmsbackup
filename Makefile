@@ -18,7 +18,7 @@ LONGOPT=-DHAVE_GETOPTLONG
 #
 # Choose this set if you do NOT have starlet available
 #
-CFLAGS=$(REMOTE) $(LONGOPT) -Wall -fdollars-in-identifiers -g
+CFLAGS=$(REMOTE) $(LONGOPT) -Wall -fdollars-in-identifiers -g -DDEBUG
 LDLIBS=
 #
 # Choose this set if you DO have starlet available
