@@ -9,7 +9,7 @@
  *  Author:
  *	John Douglas CAREY.  (version 2.x, I think)
  *	Sven-Ove Westberg    (version 3.0)
- *      See ChangeLog file for more recent authors.
+ *      See NEWS file for more recent authors.
  *
  *  Net-addess (as of 1986 or so; it is highly unlikely these still work):
  *	john%monu1.oz@seismo.ARPA
@@ -74,7 +74,45 @@ int mkdir (char *path, int mode);
 #include "sysdep.h"
 
 #ifdef DEBUG
-static void debug_dump(const unsigned char* buffer, int dsize, int dtype);
+#include "hexdump.h"
+static void debug_dump(const unsigned char* buffer, int dsize, unsigned int dtype, char *names[], int namecount)
+{
+
+	if (debugflag)
+	{
+	    char *name = "???";
+	    if (dtype < namecount) {
+	        name = names[dtype];
+	    }
+		printf(" dsize = 0x%x/%d dtype = 0x%x/%d:<%s> ",
+			dsize, dsize, dtype, dtype, name);
+/*		while(dsize--)
+		{
+			printf("%x/%d, ", *buffer, *buffer);
+			buffer++;
+		}
+		printf("\n");
+*/
+	    hexdump(buffer, dsize, stdout);
+	}
+}
+
+static char *dtype_summary_names[] = {
+/*          0,         1,         2,           3,            4        , 5,      6,    7 */
+    "padding", "saveset", "command", "<unknown>", "written_by", "usr/grp", "date", "os",
+/*            8,          9,        a,            b,                c,            d,            e,              f */
+    "osversion", "nodename", "id_reg", "written_on", "backup_version", "block_size", "group_size", "buffer_count"
+};
+
+static char *dtype_names[] = {
+/*       0, 1, 2, 3, 4, 5, 6, 7, 8, 9, a, b, c, d, e, f */
+    "data", "0x01", "0x02", "0x03", "0x04", "0x05", "0x06", "0x07",
+    "0x08", "0x09", "0x0a", "0x0b", "0x0c", "0x0d", "0x0e", "0x0f",
+    "0x10", "0x11", "0x12", "0x13", "0x14", "0x15", "0x16", "0x17",
+    "0x18", "0x19", "0x1a", "0x1b", "0x1c", "0x1d", "0x1e", "0x1f",
+    "0x20", "0x21", "0x22", "0x23", "0x24", "0x25", "0x26", "0x27",
+    "0x28", "0x29", "filename", "0x2b", "0x2c", "0x2d", "0x2e", "0x2f",
+};
 #endif
 
 
@@ -86,15 +124,27 @@ static void debug_dump(const unsigned char* buffer, int dsize, int dtype);
    add them if needed.  They are, of course little-endian as that is
    the byteorder used by all integers in a BACKUP saveset.  */
 
-unsigned long getu32 (char *addr)
+unsigned long getu32 (unsigned char *addr)
 {
+#ifdef DEBUG
+//    if (debugflag) {
+//	printf("getu32: ");
+//	hexdump(addr, 4, stdout);
+//    }
+#endif
 	return (((((unsigned long)addr[3] << 8) | addr[2]) << 8)
 		| addr[1]) << 8 | addr[0];
 }
 
-unsigned int getu16 (char *addr)
+unsigned int getu16 (unsigned char *addr)
 {
-	return (addr[1] << 8) | addr[0];
+#ifdef DEBUG
+//    if (debugflag) {
+//	printf("getu16: ");
+//	hexdump(addr, 2, stdout);
+//     }
+#endif
+	return ((unsigned int)addr[1] << 8) | addr[0];
 }
 
 struct bbh {
@@ -122,7 +172,7 @@ struct bbh {
 	unsigned char	bbh_dol_l_filesize[4];
 	char	bbh_dol_t_spare_2[22];
 	unsigned char	bbh_dol_w_checksum[2];
-} *block_header;
+}__attribute__((packed, aligned(1))) *block_header;
 
 struct brh {
 	unsigned char	brh_dol_w_rsize[2];
@@ -130,7 +180,7 @@ struct brh {
 	unsigned char	brh_dol_l_flags[4];
 	unsigned char	brh_dol_l_address[4];
 	unsigned char	brh_dol_l_spare[4];
-} *record_header;
+}__attribute__((packed, aligned(1))) *record_header;
 
 /* define record types */
 
@@ -147,7 +197,7 @@ struct bsa {
 	unsigned char	bsa_dol_w_size[2];
 	unsigned char	bsa_dol_w_type[2];
         char	        bsa_dol_t_text[1];
-} *data_item;
+}__attribute__((packed, aligned(1))) *data_item;
 
 #ifdef	STREAM
 char	*def_tapefile = "/dev/rts8";
@@ -329,7 +379,7 @@ void process_summary (unsigned char *buffer, size_t rsize)
 	size_t c;
 	size_t dsize;
 	char *text;
-	int type;
+	unsigned int type;
 
 	/* These are the various fields from the summary.  */
 	unsigned long id = 0;
@@ -358,7 +408,6 @@ void process_summary (unsigned char *buffer, size_t rsize)
 
 	if (!tflag)
 		return;
-
 	/* check the header word */
 	if (buffer[0] != 1 || buffer[1] != 1) {
 		printf ("Cannot print summary; invalid data header\n");
@@ -366,11 +415,17 @@ void process_summary (unsigned char *buffer, size_t rsize)
 	}
 	c = 2;
 	while (c < rsize) {
+#ifdef DEBUG
+	    if (debugflag) {
+		hexdump(buffer + c, 16, stdout);
+	    }
+#endif
 		dsize = getu16 ((char *)((struct bsa *)&buffer[c])->bsa_dol_w_size);
 	        if (dsize < 0) {
 		    fprintf(stderr, "Corrupted backup file, size is negative\n");
 		    return;
 		}
+
 		type = getu16 ((char *)((struct bsa *)&buffer[c])->bsa_dol_w_type);
 		text = ((struct bsa *)&buffer[c])->bsa_dol_t_text;
 
@@ -379,8 +434,9 @@ void process_summary (unsigned char *buffer, size_t rsize)
 		   have "official" names we should be using or anything
 		   like that.  */
 #ifdef DEBUG
-		debug_dump((unsigned char *)text, dsize, type);
+		debug_dump((unsigned char *)text, dsize, type, dtype_summary_names, sizeof(dtype_summary_names)/sizeof(char *));
 #endif
+	        if (dsize > 0)
 		switch (type) {
 		case 0:
 			/* This seems to be used for padding at the end
@@ -405,8 +461,7 @@ void process_summary (unsigned char *buffer, size_t rsize)
 			}
 			break;
 		case 6:
-			if (dsize != 8
-			    || !(time_vms_to_asc (&date_length, date, text)
+			if (!(time_vms_to_asc (&date_length, date, text, dsize)
 				 & 1))
 			{
 				strcpy (date, "error converting date");
@@ -540,7 +595,10 @@ void process_file(unsigned char *buffer, size_t rsize)
 		printf("Snark: invalid data header\n");
 		exit(1);
 	}
-fprintf(stderr, "process_file, expecting %ld bytes\n", rsize);
+#ifdef DEBUG
+    if (debugflag)
+	    printf("process_file, expecting %ld bytes\n", rsize);
+#endif
 	c = 2;
 	while (c < rsize) {
 		dsize = getu16 ((char *)((struct bsa *) &buffer[c])->bsa_dol_w_size);
@@ -548,7 +606,7 @@ fprintf(stderr, "process_file, expecting %ld bytes\n", rsize);
 		data = (unsigned char *)((struct bsa *)&buffer[c])->bsa_dol_t_text;
 
 #ifdef DEBUG
-		debug_dump(data, dsize, dtype);
+		debug_dump(data, dsize, dtype, dtype_names, sizeof(dtype_names)/sizeof(char *));
 #endif
 
 		/* Probably should define constants for the cases in this
@@ -644,7 +702,7 @@ fprintf(stderr, "process_file, expecting %ld bytes\n", rsize);
 		case 0x36:
 			/* In my example, 8 bytes.  Presumably a date.  */
 			if (memcmp("\0\0\0\0\0\0\0\0", data, 8) != 0 &&
-				!(time_vms_to_asc (&date_length, date4, data)
+				!(time_vms_to_asc (&date_length, date4, data, 8)
 				 & 1))
 			{
 				strcpy (date4, "error converting date");
@@ -653,7 +711,7 @@ fprintf(stderr, "process_file, expecting %ld bytes\n", rsize);
 		case 0x37:
 			/* In my example, 8 bytes.  Presumably a date.  */
 			if (memcmp("\0\0\0\0\0\0\0\0", data, 8) != 0 &&
-				!(time_vms_to_asc (&date_length, date1, data)
+				!(time_vms_to_asc (&date_length, date1, data, 8)
 				 & 1))
 			{
 				strcpy (date1, "error converting date");
@@ -665,7 +723,7 @@ fprintf(stderr, "process_file, expecting %ld bytes\n", rsize);
 			   and BACKUP prints "<None specified>" for
 			   expires.  */
 			if (memcmp("\0\0\0\0\0\0\0\0", data, 8) != 0 &&
-				!(time_vms_to_asc (&date_length, date2, data)
+				!(time_vms_to_asc (&date_length, date2, data, 8)
 				 & 1))
 			{
 				strcpy (date2, "error converting date");
@@ -674,7 +732,7 @@ fprintf(stderr, "process_file, expecting %ld bytes\n", rsize);
 		case 0x39:
 			/* In my example, 8 bytes.  Presumably a date.  */
 			if (memcmp("\0\0\0\0\0\0\0\0", data, 8) != 0 &&
-				!(time_vms_to_asc (&date_length, date3, data)
+				!(time_vms_to_asc (&date_length, date3, data, 8)
 				 & 1))
 			{
 				strcpy (date3, "error converting date");
@@ -888,7 +946,7 @@ void process_vbn(unsigned char *buffer, unsigned short rsize)
 				fprintf(lf, "---\n");
 				fprintf(lf, "reclen = %d\n", reclen);
 				fprintf(lf, "i = %d\n", i);
-				fprintf(lf, "rsize = %d\n", rsize);
+				fprintf(lf, "rsize = 0x%x/%d\n", rsize, rsize);
 #endif
 				fix = reclen;
 				if (flag_binary) for (j = 0; j < 2; j++) {
@@ -964,7 +1022,7 @@ void process_vbn(unsigned char *buffer, unsigned short rsize)
 
 /*
  *
- *  process a backup block
+ *  process a backup block of blocksize bytes
  *
  */
 void process_block(unsigned char *block, int blocksize)
@@ -979,6 +1037,10 @@ void process_block(unsigned char *block, int blocksize)
 	block_header = (struct bbh *) &block[i];
 	i += sizeof(struct bbh);
 
+#ifdef	DEBUG
+	if (debugflag)
+	    printf("get block header size and block size\n");
+#endif
 	bhsize = getu16 ((char *)block_header->bbh_dol_w_size);
 	bsize = getu32 ((char *)block_header->bbh_dol_l_blocksize);
 
@@ -997,27 +1059,42 @@ void process_block(unsigned char *block, int blocksize)
 	}
 #ifdef	DEBUG
 	if (debugflag)
-		printf("new block: i = %ld, bsize = %ld\n", i, bsize);
+		printf("new block: i = %ld, bsize = 0x%lx/%ld\n", i, bsize, bsize);
 #endif
 
 	/* read the records */
 	while (i < bsize) {
 		/* read the backup record header */
 		record_header = (struct brh *) &block[i];
+#ifdef	DEBUG
+	if (debugflag) {
+	    printf("Record header: ");
+	    hexdump((unsigned char *)record_header, sizeof(struct brh), stdout);
+	}
+#endif
 		i += sizeof(struct brh);
 
+#ifdef	DEBUG
+	if (debugflag)
+	    printf("get record type and record size\n");
+#endif
 		rtype = getu16 ((char *)record_header->brh_dol_w_rtype);
 		rsize = getu16 ((char *)record_header->brh_dol_w_rsize);
+	    if (rsize > (bsize - i + 1)) {
+		printf("Record size %d larger than remaining block size (%ld), aborting\n", rsize, (bsize-i));
+		exit(1);
+	    }
 #ifdef	DEBUG
 		if (debugflag)
 		{
-			printf("rtype = %d\n", rtype);
-			printf(" rsize = %d\n", rsize);
-			printf(" flags = 0x%lx\n",
+		    printf("Record header:\n");
+			printf(" rtype = %d\n", rtype);
+			printf("  rsize = 0x%x/%d\n", rsize, rsize);
+			printf("  flags = 0x%lx\n",
 			       getu32 ((char *)record_header->brh_dol_l_flags));
-			printf(" addr = 0x%lx\n",
+			printf("  addr = 0x%lx\n",
 			       getu32 ((char *)record_header->brh_dol_l_address));
-			printf(" i = %ld\n", i);
+			printf("  i = %ld\n", i);
 		}
 #endif
 
@@ -1026,7 +1103,7 @@ void process_block(unsigned char *block, int blocksize)
 		case brh_dol_k_null:
 #ifdef	DEBUG
 			if (debugflag)
-				printf("rtype = null\n");
+				printf("rtype = %d:null\n", rtype);
 #endif
 			/* This is the type used to pad to the end of
 			   a block.  */
@@ -1035,7 +1112,7 @@ void process_block(unsigned char *block, int blocksize)
 		case brh_dol_k_summary:
 #ifdef	DEBUG
 			if (debugflag)
-				printf("rtype = summary\n");
+				printf("rtype = %d:summary\n", rtype);
 #endif
 			process_summary (&block[i], rsize);
 			break;
@@ -1043,7 +1120,7 @@ void process_block(unsigned char *block, int blocksize)
 		case brh_dol_k_file:
 #ifdef	DEBUG
 			if (debugflag)
-				printf("rtype = file\n");
+				printf("rtype = %d:file\n", rtype);
 #endif
 			process_file(&block[i], rsize);
 			break;
@@ -1051,7 +1128,7 @@ void process_block(unsigned char *block, int blocksize)
 		case brh_dol_k_vbn:
 #ifdef	DEBUG
 			if (debugflag)
-				printf("rtype = vbn\n");
+				printf("rtype = %d:vbn\n", rtype);
 #endif
 			process_vbn(&block[i], rsize);
 			break;
@@ -1059,21 +1136,21 @@ void process_block(unsigned char *block, int blocksize)
 		case brh_dol_k_physvol:
 #ifdef	DEBUG
 			if (debugflag)
-				printf("rtype = physvol\n");
+				printf("rtype = %d:physvol\n", rtype);
 #endif
 			break;
 
 		case brh_dol_k_lbn:
 #ifdef	DEBUG
 			if (debugflag)
-				printf("rtype = lbn\n");
+				printf("rtype = %d:lbn\n", rtype);
 #endif
 			break;
 
 		case brh_dol_k_fid:
 #ifdef	DEBUG
 			if (debugflag)
-				printf("rtype = fid\n");
+				printf("rtype = %d:fid\n", rtype);
 #endif
 			break;
 
@@ -1187,7 +1264,11 @@ void vmsbackup(void)
 		perror(tapefile);
 		exit(1);
 	}
-
+#ifdef DEBUG
+    if (debugflag) {
+	printf("Opened '%s' as %d\n", tapefile, fd);
+    }
+#endif
 #if HAVE_MT_IOCTLS
 	/* rewind the tape */
 	op.mt_op = MTREW;
@@ -1251,6 +1332,11 @@ void vmsbackup(void)
 		}
 		else
 			i = read(fd, block, blocksize);
+#ifdef DEBUG
+    if (debugflag) {
+	printf("Read %d of %d bytes\n", i, blocksize);
+    }
+#endif
 		if(i == 0) {
 			if (ondisk) {
 				/* No need to support multiple save sets.  */
@@ -1271,9 +1357,9 @@ void vmsbackup(void)
 			fprintf(stderr, "bad block read i = %d\n", i);
 			exit(1);
 		}
-		else{
+		else {
 			eoffl = 0;
-			process_block(block, blocksize);
+			process_block(block, i);
 		}
 	}
 	if(vflag || tflag) {
@@ -1297,23 +1383,3 @@ void vmsbackup(void)
 	/* exit cleanly */
 	exit(0);
 }
-
-
-#ifdef DEBUG
-static void debug_dump(const unsigned char* buffer, int dsize, int dtype)
-{
-
-	if (debugflag)
-	{
-		printf(" dsize = %x/%d dtype = %x/%d: ",
-			dsize, dsize, dtype, dtype);
-		while(dsize--)
-		{
-			printf("%x/%d, ", *buffer, *buffer);
-			buffer++;
-		}
-		printf("\n");
-	}
-}
-#endif
-

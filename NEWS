@@ -1,3 +1,13 @@
+Changes in 4.3: (kkaempf@gmail.com)
+
+* convert source code to ANSI C, fix signedness for getu{16,32}
+
+* add hexdump function for debugging
+
+* add descriptive dtype names for debugging
+
+* implement time conversion (for non-VMS systems)
+
 Changes since version 4.1: (kth@srv.net)
 
 * Use the include files <descrip.h> and <fabdef.h> instead of many
