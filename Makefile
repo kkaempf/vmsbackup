@@ -36,7 +36,7 @@ MANSEC=1
 MANDIR=/usr/share/man/man$(MANSEC)
 DISTFILES=README vmsbackup.1 Makefile vmsbackup.c match.c NEWS  build.com dclmain.c getoptmain.c vmsbackup.cld vmsbackup.h  sysdep.h
 
-vmsbackup: vmsbackup.o match.o getoptmain.o
+vmsbackup: vmsbackup.o match.o getoptmain.o hexdump.o
 
 vmsbackup.o : vmsbackup.c
 match.o : match.c
