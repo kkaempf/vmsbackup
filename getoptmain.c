@@ -199,6 +199,8 @@ int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime, int srcle
 int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime, int srclen)
 {
     unsigned long long tval = 0;
+    char *tstr;
+    int tlen;
     if (srclen != sizeof(long long)) {
       errno = EINVAL;
       return 0;
@@ -212,10 +214,13 @@ int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime, int srcle
     /* 17-Nov-1858 to 1-Jan-1970: 40587 days */
     tval -= (40587LL * 24 * 60 * 60); /* to epoch (1-Jan-1970) */
 //    printf("time_vms_to_asc epoch %lld >%s<\n", tval, ctime((time_t *)&tval));
-    *asclength = 24;
-    strncpy(ascbuffer, ctime((time_t *)&tval), *asclength);
+    tstr = ctime((time_t *)&tval);
+    tlen = strlen(tstr);
+    *(tstr+tlen-1) = 0; /* drop trailing newline */
+//    printf("tstr >%s< %d\n", tstr, tlen);
+    *asclength = tlen;
+    strncpy(ascbuffer, tstr, 32);
 
     return 1;
 }
 #endif
-
