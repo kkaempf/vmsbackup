@@ -93,7 +93,10 @@ static void debug_dump(const unsigned char* buffer, int dsize, unsigned int dtyp
 		}
 		printf("\n");
 */
-	    hexdump(buffer, dsize, stdout);
+	    if (dsize > 0)
+		    hexdump(buffer, dsize, stdout);
+	    else
+		    printf("\n");
 	}
 }
 
@@ -111,7 +114,9 @@ static char *dtype_names[] = {
     "0x10", "0x11", "0x12", "0x13", "0x14", "0x15", "0x16", "0x17",
     "0x18", "0x19", "0x1a", "0x1b", "0x1c", "0x1d", "0x1e", "0x1f",
     "0x20", "0x21", "0x22", "0x23", "0x24", "0x25", "0x26", "0x27",
-    "0x28", "0x29", "filename", "0x2b", "0x2c", "0x2d", "0x2e", "0x2f",
+    "0x28", "0x29", "filename", "0x2b", "fileid", "0x2d", "0x2e", "usr/grp",
+    "protection", "0x31", "0x32", "0x33", "record format", "0x35", "date1", "date2",
+    "expires", "date3"
 };
 #endif
 
@@ -378,7 +383,7 @@ void process_summary (unsigned char *buffer, size_t rsize)
 {
 	size_t c;
 	size_t dsize;
-	char *text;
+	unsigned char *text;
 	unsigned int type;
 
 	/* These are the various fields from the summary.  */
@@ -400,7 +405,7 @@ void process_summary (unsigned char *buffer, size_t rsize)
 	size_t written_on_size = 0;
 	char *backup_version = "unknown";
 	size_t backup_version_size = 7;
-	char date[24] = "<unknown date>";
+	char date[32] = "<unknown date>";
 	short date_length = 0;
 	unsigned long blksz = 0;
 	unsigned int grpsz = 0;
@@ -420,14 +425,14 @@ void process_summary (unsigned char *buffer, size_t rsize)
 		hexdump(buffer + c, 16, stdout);
 	    }
 #endif
-		dsize = getu16 ((char *)((struct bsa *)&buffer[c])->bsa_dol_w_size);
+		dsize = getu16 ((unsigned char *)((struct bsa *)&buffer[c])->bsa_dol_w_size);
 	        if (dsize < 0) {
 		    fprintf(stderr, "Corrupted backup file, size is negative\n");
 		    return;
 		}
 
-		type = getu16 ((char *)((struct bsa *)&buffer[c])->bsa_dol_w_type);
-		text = ((struct bsa *)&buffer[c])->bsa_dol_t_text;
+		type = getu16 ((unsigned char *)((struct bsa *)&buffer[c])->bsa_dol_w_type);
+		text = (unsigned char *)((struct bsa *)&buffer[c])->bsa_dol_t_text;
 
 		/* Probably should define constants for the cases in this
 		   switch, but I don't know anything about whether they
@@ -443,15 +448,15 @@ void process_summary (unsigned char *buffer, size_t rsize)
 			   of the summary.  */
 			goto end_of_summary;
 		case 1:
-			saveset = text;
+			saveset = (char *)text;
 			saveset_size = dsize;
 			break;
 		case 2:
-			command = text;
+			command = (char *)text;
 			command_size = dsize;
 			break;
 		case 4:
-			written_by = text;
+			written_by = (char *)text;
 			written_by_size = dsize;
 			break;
 		case 5:
@@ -493,11 +498,11 @@ void process_summary (unsigned char *buffer, size_t rsize)
 			}
 			break;
 		case 8:
-			osversion = text;
+			osversion = (char *)text;
 			osversion_size = dsize;
 			break;
 		case 9:
-			nodename = text;
+			nodename = (char *)text;
 			nodename_size = dsize;
 			break;
 		case 10:
@@ -506,11 +511,11 @@ void process_summary (unsigned char *buffer, size_t rsize)
 			}
 			break;
 		case 11:
-			written_on = text;
+			written_on = (char *)text;
 			written_on_size = dsize;
 			break;
 		case 12:
-			backup_version = text;
+			backup_version = (char *)text;
 			backup_version_size = dsize;
 			break;
 		case 13:
@@ -568,10 +573,10 @@ void process_file(unsigned char *buffer, size_t rsize)
 	unsigned char *data;
 	char *cfname;
 	char *sfilename;
-	char date1[24] = " <None specified>";
-	char date2[24] = " <None specified>";
-	char date3[24] = " <None specified>";
-	char date4[24] = " <None specified>";
+	char date1[32] = " <None specified>";
+	char date2[32] = " <None specified>";
+	char date3[32] = " <None specified>";
+	char date4[32] = " <None specified>";
 	short date_length = 0;
 	unsigned int fileid1 = 0, fileid2 = 0, fileid3 = 0;
 	unsigned int extension = 0;
@@ -601,8 +606,8 @@ void process_file(unsigned char *buffer, size_t rsize)
 #endif
 	c = 2;
 	while (c < rsize) {
-		dsize = getu16 ((char *)((struct bsa *) &buffer[c])->bsa_dol_w_size);
-		dtype = getu16 ((char *)((struct bsa *)&buffer[c])->bsa_dol_w_type);
+		dsize = getu16 ((unsigned char *)((struct bsa *) &buffer[c])->bsa_dol_w_size);
+		dtype = getu16 ((unsigned char *)((struct bsa *)&buffer[c])->bsa_dol_w_type);
 		data = (unsigned char *)((struct bsa *)&buffer[c])->bsa_dol_t_text;
 
 #ifdef DEBUG
@@ -631,9 +636,9 @@ void process_file(unsigned char *buffer, size_t rsize)
 		case 0x2c:
 			/* In my example, 6 bytes,
 			   0x7a 0x2 0x57 0x0 0x1 0x1.  */
-			fileid1 = getu16((char *)data);
-			fileid2 = getu16((char *)data + 2);
-			fileid3 = getu16((char *)data + 4);
+			fileid1 = getu16(data);
+			fileid2 = getu16(data + 2);
+			fileid3 = getu16(data + 4);
 			break;
 		case 0x2e:
 			/* In my example, 4 bytes, 0x00000004.  Maybe
@@ -641,38 +646,38 @@ void process_file(unsigned char *buffer, size_t rsize)
 			break;
 		case 0x2f:
 			if (dsize == 4) {
-				usr = getu16 ((char *)data);
-				grp = getu16 ((char *)data + 2);
+				usr = getu16 (data);
+				grp = getu16 (data + 2);
 			}
 			break;
 		case 0x34:
 			recfmt = data[0];
 			recatt = data[1];
-			recsize = getu16 ((char *)&data[2]);
+			recsize = getu16 (&data[2]);
 			/* bytes 4-7 unaccounted for.  */
-			ablk = getu16 ((char *)&data[6]);
-			nblk = getu16 ((char *)&data[10])
+			ablk = getu16 (&data[6]);
+			nblk = getu16 (&data[10])
 				/* Adding in the following amount is a
 				   change that I brought over from
 				   vmsbackup 3.1.  The comment there
 				   said "subject to confirmation from
 				   backup expert here" but I'll put it
 				   in until someone complains.  */
-				+ (64 * 1024) * getu16 ((char *)&data[8]);
-			lnch = getu16 ((char *)&data[12]);
+				+ (64 * 1024) * getu16 (&data[8]);
+			lnch = getu16 (&data[12]);
 			/* byte 14 unaccounted for */
 			vfcsize = data[15];
 			if (vfcsize == 0)
 				vfcsize = 2;
 			/* bytes 16-31 unaccounted for */
-			extension = getu16 ((char *)&data[18]);
+			extension = getu16 (&data[18]);
 			break;
 		case 0x2d:
 			/* In my example, 6 bytes.  hex 2b3c 2000 0000.  */
 			break;
 		case 0x30:
 			/* In my example, 2 bytes.  0x44 0xee.  */
-			protection = getu16 ((char *)&data[0]);
+			protection = getu16 (&data[0]);
 			break;
 		case 0x31:
 			/* In my example, 2 bytes.  hex 0000.  */
@@ -716,6 +721,8 @@ void process_file(unsigned char *buffer, size_t rsize)
 			{
 				strcpy (date1, "error converting date");
 			}
+		        else if (debugflag)
+			    printf("%s\n", date1);
 			break;
 		case 0x38:
 			/* In my example, 8 bytes.  Presumably expires
@@ -728,6 +735,8 @@ void process_file(unsigned char *buffer, size_t rsize)
 			{
 				strcpy (date2, "error converting date");
 			}
+		        else if (debugflag)
+			    printf("%s\n", date2);
 			break;
 		case 0x39:
 			/* In my example, 8 bytes.  Presumably a date.  */
@@ -737,6 +746,8 @@ void process_file(unsigned char *buffer, size_t rsize)
 			{
 				strcpy (date3, "error converting date");
 			}
+		        else if (debugflag)
+			    printf("%s\n", date3);
 			break;
 		case 0x47:
 			/* In my example, 4 bytes.  01 00c6 00.  */
@@ -816,11 +827,8 @@ void process_file(unsigned char *buffer, size_t rsize)
 	else
 		procf = 1;
 	if (tflag && procf && !flag_full)
-#ifdef HAVE_STARLET
-		printf ("%-52s %8ld %s\n", filename, blocks, date4);
-#else
-		printf ("%-52s %8ld\n", filename, blocks);
-#endif
+	    printf ("%-52s %8ld  %s\n", filename, blocks, date4);
+
 	if (tflag && procf && flag_full) {
 		printf ("%-30.30s File ID:  (%d,%d,%d)\n",
 			filename,fileid1,fileid2,fileid3);
@@ -941,7 +949,7 @@ void process_vbn(unsigned char *buffer, unsigned short rsize)
 		case FAB$C_VAR:
 		case FAB$C_VFC:
 			if (reclen == 0) {
-				reclen = getu16 ((char *)&buffer[i]);
+				reclen = getu16 (&buffer[i]);
 #ifdef	NEWD
 				fprintf(lf, "---\n");
 				fprintf(lf, "reclen = %d\n", reclen);
@@ -1041,8 +1049,8 @@ void process_block(unsigned char *block, int blocksize)
 	if (debugflag)
 	    printf("get block header size and block size\n");
 #endif
-	bhsize = getu16 ((char *)block_header->bbh_dol_w_size);
-	bsize = getu32 ((char *)block_header->bbh_dol_l_blocksize);
+	bhsize = getu16 ((unsigned char *)block_header->bbh_dol_w_size);
+	bsize = getu32 ((unsigned char *)block_header->bbh_dol_l_blocksize);
 
 	/* check the validity of the header block */
 	if (bhsize != sizeof(struct bbh)) {
@@ -1055,7 +1063,7 @@ void process_block(unsigned char *block, int blocksize)
 	if (bsize != 0 && bsize != blocksize) {
 		fprintf(stderr, "Snark: Invalid block size got %ld, expected %d)\n",
 			bsize, blocksize);
-		exit(1);
+//		exit(1);
 	}
 #ifdef	DEBUG
 	if (debugflag)
@@ -1078,8 +1086,8 @@ void process_block(unsigned char *block, int blocksize)
 	if (debugflag)
 	    printf("get record type and record size\n");
 #endif
-		rtype = getu16 ((char *)record_header->brh_dol_w_rtype);
-		rsize = getu16 ((char *)record_header->brh_dol_w_rsize);
+		rtype = getu16 ((unsigned char *)record_header->brh_dol_w_rtype);
+		rsize = getu16 ((unsigned char *)record_header->brh_dol_w_rsize);
 	    if (rsize > (bsize - i + 1)) {
 		printf("Record size %d larger than remaining block size (%ld), aborting\n", rsize, (bsize-i));
 		exit(1);
@@ -1091,9 +1099,9 @@ void process_block(unsigned char *block, int blocksize)
 			printf(" rtype = %d\n", rtype);
 			printf("  rsize = 0x%x/%d\n", rsize, rsize);
 			printf("  flags = 0x%lx\n",
-			       getu32 ((char *)record_header->brh_dol_l_flags));
+			       getu32 ((unsigned char *)record_header->brh_dol_l_flags));
 			printf("  addr = 0x%lx\n",
-			       getu32 ((char *)record_header->brh_dol_l_address));
+			       getu32 ((unsigned char *)record_header->brh_dol_l_address));
 			printf("  i = %ld\n", i);
 		}
 #endif
