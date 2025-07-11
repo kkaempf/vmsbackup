@@ -5,6 +5,7 @@ char *version = "VMSBACKUP4.3";
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
+#include <errno.h>
 #include "vmsbackup.h"
 #include "sysdep.h"
 
@@ -167,12 +168,14 @@ int main (int argc, char *argv[])
 /* Given an 8-byte VMS-format date (little-endian) in SRCTIME, put an
    ASCII representation in *ASCBUFFER and put the length in *ASCLENGTH.
    ASCBUFFER must be big enough for 23 characters.
-   Returns: condition code.  */
+   Returns: condition code. (SS$_NORMAL == 1 for success)  */
 #ifdef HAVE_STARLET
-int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime)
+int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime, int srclen)
 {
     struct dsc$descriptor buffer;
 
+    if (srclen != 8)
+      return SS$_INSFARG;
     buffer.dsc$w_length = 23;
     buffer.dsc$b_dtype = DSC$K_DTYPE_T;
     buffer.dsc$b_class = DSC$K_CLASS_S;
@@ -180,9 +183,38 @@ int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime)
     return sys$asctim (asclength, &buffer, srctime, 0);
 }
 #else
-int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime)
+#include <time.h>
+#include <string.h>
+#include "hexdump.h"
+/* See OpenVMS programming concepts manual volume 2, section 11.1
+   "The time value is a binary number in 100-nanosecond (ns) units offset
+    from the system base date and time, which is 00:00 o'clock,
+    November 17, 1858 (the Smithsonian base date and time for the astronomic calendar).
+
+    1 second = 10 million * 100 ns
+
+    returns 1 for success
+ */
+
+int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime, int srclen)
 {
-    *asclength = 0;
+    unsigned long long tval = 0;
+    if (srclen != sizeof(long long)) {
+      errno = EINVAL;
+      return 0;
+    }
+    /* get srctime as 64bit little endian to tval */
+    memcpy(&tval, srctime, srclen);
+//    printf("time_vms_to_asc %lld\n", tval);
+//    hexdump((unsigned char *)&tval, 8, stdout);
+    tval /= (10LL * 1000 * 1000); /* to seconds */
+//    printf("time_vms_to_asc seconds %lld\n", tval);
+    /* 17-Nov-1858 to 1-Jan-1970: 40587 days */
+    tval -= (40587LL * 24 * 60 * 60); /* to epoch (1-Jan-1970) */
+//    printf("time_vms_to_asc epoch %lld >%s<\n", tval, ctime((time_t *)&tval));
+    *asclength = 24;
+    strncpy(ascbuffer, ctime((time_t *)&tval), *asclength);
+
     return 1;
 }
 #endif
