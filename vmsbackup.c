@@ -599,15 +599,15 @@ void process_file(unsigned char *buffer, size_t rsize)
 
 	int 	procf;
 
-	/* check the header word */
-	if (buffer[0] != 1 || buffer[1] != 1) {
-		printf("Snark: invalid data header\n");
-		exit(1);
-	}
 #ifdef DEBUG
     if (debugflag)
 	    printf("process_file, expecting %ld bytes\n", rsize);
 #endif
+	/* check the header word */
+	if (buffer[0] != 1 || buffer[1] != 1) {
+		printf("Snark: invalid data header in process_file: %02x %02x\n", buffer[0], buffer[1]);
+		exit(1);
+	}
 	c = 2;
 	while (c < rsize) {
 		dsize = getu16 ((unsigned char *)((struct bsa *) &buffer[c])->bsa_dol_w_size);
@@ -1038,7 +1038,6 @@ void process_vbn(unsigned char *buffer, unsigned short rsize)
  *
  *  process a backup block of blksize bytes
  *
- * return new blocksize
  */
 void process_block(unsigned char *block, int blksize)
 {
@@ -1070,20 +1069,13 @@ void process_block(unsigned char *block, int blksize)
 		exit(1);
 	}
 	if (bsize != 0 && bsize != blksize) {
-	    if (bsize == 8192) {
-		printf("Detected 8k blocksize, assuming Save Set\n");
-		blocksize = bsize;
-		vmsbackup();
-	    }
-	    else {
-		printf("Snark: Invalid block size got %ld, expected %d)\n",
-			bsize, blksize);
-		exit(1);
-	    }
 	    if (bsize > blksize) {
 		printf("Snark: Block header blocksize too large, aborting\n");
 		exit(1);
 	    }
+	    printf("Detected changed blocksize, assuming Save Set\n");
+	    blocksize = bsize;
+	    vmsbackup();
 	}
 
 #ifdef	DEBUG
@@ -1363,7 +1355,7 @@ void vmsbackup(void)
 			i = read(fd, block, blocksize);
 #ifdef DEBUG
     if (debugflag) {
-	printf("Read %d of %d bytes\n", i, blocksize);
+	printf("Read %d of %d bytes, now at 0x%lx\n", i, blocksize, lseek(fd, 0, SEEK_CUR));
     }
 #endif
 		if(i == 0) {
