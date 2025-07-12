@@ -157,14 +157,14 @@ struct bbh {
 	unsigned char	bbh_dol_w_opsys[2];
 	unsigned char	bbh_dol_w_subsys[2];
 	unsigned char	bbh_dol_w_applic[2];
-	unsigned char	bbh_dol_l_number[4];
+	unsigned char	bbh_dol_l_number[4]; /* @8 */
 	char	bbh_dol_t_spare_1[20];
-	unsigned char	bbh_dol_w_struclev[2];
+	unsigned char	bbh_dol_w_struclev[2]; /* @32 0x20 */
 	unsigned char	bbh_dol_w_volnum[2];
 	unsigned char	bbh_dol_l_crc[4];
-	unsigned char	bbh_dol_l_blocksize[4];
+	unsigned char	bbh_dol_l_blocksize[4]; /* @40 0x28 */
 	unsigned char	bbh_dol_l_flags[4];
-	char	bbh_dol_t_ssname[32];
+	char	bbh_dol_t_ssname[32]; /* 1-byte length, followed by chars */
 	unsigned char	bbh_dol_w_fid[3][2];
 	unsigned char	bbh_dol_w_did[3][2];
 	char	bbh_dol_t_filename[128];
@@ -177,7 +177,7 @@ struct bbh {
 	unsigned char	bbh_dol_l_filesize[4];
 	char	bbh_dol_t_spare_2[22];
 	unsigned char	bbh_dol_w_checksum[2];
-}__attribute__((packed, aligned(1))) *block_header;
+}__attribute__((packed, aligned(1))) *block_header; /* 256 bytes total */
 
 struct brh {
 	unsigned char	brh_dol_w_rsize[2];
@@ -185,7 +185,7 @@ struct brh {
 	unsigned char	brh_dol_l_flags[4];
 	unsigned char	brh_dol_l_address[4];
 	unsigned char	brh_dol_l_spare[4];
-}__attribute__((packed, aligned(1))) *record_header;
+}__attribute__((packed, aligned(1))) *record_header; /* 16 bytes total */
 
 /* define record types */
 
@@ -197,7 +197,11 @@ struct brh {
 #define brh_dol_k_physvol	5
 #define brh_dol_k_lbn	6
 #define	brh_dol_k_fid	7
-
+#ifdef	DEBUG
+static char *brh_type_names[] = {
+    "null", "summary", "volume", "file", "vbn", "physvol", "lbn", "fid"
+};
+#endif
 struct bsa {
 	unsigned char	bsa_dol_w_size[2];
 	unsigned char	bsa_dol_w_type[2];
@@ -712,6 +716,8 @@ void process_file(unsigned char *buffer, size_t rsize)
 			{
 				strcpy (date4, "error converting date");
 			}
+		        else if (debugflag)
+			    printf("%s\n", date1);
 			break;
 		case 0x37:
 			/* In my example, 8 bytes.  Presumably a date.  */
@@ -953,7 +959,7 @@ void process_vbn(unsigned char *buffer, unsigned short rsize)
 #ifdef	NEWD
 				fprintf(lf, "---\n");
 				fprintf(lf, "reclen = %d\n", reclen);
-				fprintf(lf, "i = %d\n", i);
+				fprintf(lf, "i = 0x%x/%d\n", i, i);
 				fprintf(lf, "rsize = 0x%x/%d\n", rsize, rsize);
 #endif
 				fix = reclen;
@@ -1030,10 +1036,11 @@ void process_vbn(unsigned char *buffer, unsigned short rsize)
 
 /*
  *
- *  process a backup block of blocksize bytes
+ *  process a backup block of blksize bytes
  *
+ * return new blocksize
  */
-void process_block(unsigned char *block, int blocksize)
+void process_block(unsigned char *block, int blksize)
 {
 
 	unsigned short	bhsize, rsize, rtype;
@@ -1046,8 +1053,10 @@ void process_block(unsigned char *block, int blocksize)
 	i += sizeof(struct bbh);
 
 #ifdef	DEBUG
-	if (debugflag)
+	if (debugflag) {
 	    printf("get block header size and block size\n");
+	    hexdump((unsigned char *)block_header, sizeof(struct bbh), stdout);
+	}
 #endif
 	bhsize = getu16 ((unsigned char *)block_header->bbh_dol_w_size);
 	bsize = getu32 ((unsigned char *)block_header->bbh_dol_l_blocksize);
@@ -1060,32 +1069,33 @@ void process_block(unsigned char *block, int blocksize)
 			 bhsize);
 		exit(1);
 	}
-	if (bsize != 0 && bsize != blocksize) {
-		fprintf(stderr, "Snark: Invalid block size got %ld, expected %d)\n",
-			bsize, blocksize);
-//		exit(1);
+	if (bsize != 0 && bsize != blksize) {
+	    if (bsize == 8192) {
+		printf("Detected 8k blocksize, assuming Save Set\n");
+		blocksize = bsize;
+		vmsbackup();
+	    }
+	    else {
+		printf("Snark: Invalid block size got %ld, expected %d)\n",
+			bsize, blksize);
+		exit(1);
+	    }
+	    if (bsize > blksize) {
+		printf("Snark: Block header blocksize too large, aborting\n");
+		exit(1);
+	    }
 	}
+
 #ifdef	DEBUG
 	if (debugflag)
 		printf("new block: i = %ld, bsize = 0x%lx/%ld\n", i, bsize, bsize);
 #endif
-
 	/* read the records */
-	while (i < bsize) {
+	while (i < (blksize - sizeof(struct brh))) {
 		/* read the backup record header */
 		record_header = (struct brh *) &block[i];
-#ifdef	DEBUG
-	if (debugflag) {
-	    printf("Record header: ");
-	    hexdump((unsigned char *)record_header, sizeof(struct brh), stdout);
-	}
-#endif
 		i += sizeof(struct brh);
 
-#ifdef	DEBUG
-	if (debugflag)
-	    printf("get record type and record size\n");
-#endif
 		rtype = getu16 ((unsigned char *)record_header->brh_dol_w_rtype);
 		rsize = getu16 ((unsigned char *)record_header->brh_dol_w_rsize);
 	    if (rsize > (bsize - i + 1)) {
@@ -1093,16 +1103,16 @@ void process_block(unsigned char *block, int blocksize)
 		exit(1);
 	    }
 #ifdef	DEBUG
-		if (debugflag)
+	        if (debugflag)
 		{
 		    printf("Record header:\n");
-			printf(" rtype = %d\n", rtype);
+		    printf(" rtype = %d:%s\n", rtype, (rtype < sizeof(brh_type_names)/sizeof(char *))?brh_type_names[rtype]:"???");
 			printf("  rsize = 0x%x/%d\n", rsize, rsize);
 			printf("  flags = 0x%lx\n",
 			       getu32 ((unsigned char *)record_header->brh_dol_l_flags));
 			printf("  addr = 0x%lx\n",
 			       getu32 ((unsigned char *)record_header->brh_dol_l_address));
-			printf("  i = %ld\n", i);
+			printf("  i = 0x%lx/%ld\n", i, i);
 		}
 #endif
 
@@ -1181,14 +1191,25 @@ void process_block(unsigned char *block, int blocksize)
 #else
 		i += rsize;
 #endif
+#ifdef DEBUG
+    if (debugflag) {
+	printf("expecting next record, i at 0x%lx/%ld of 0x%x/%d\n", i, i, blksize, blksize);
+    }
+#endif
 	}
+    return;
 }
+
 
 int rdhead(void)
 {
 	int i, nfound;
 	char name[80];
 	nfound = 1;
+#ifdef	DEBUG
+    if (debugflag)
+	    printf("rdhead\n");
+#endif
 	/* read the tape label - 4 records of 80 bytes */
 	while ((i = read(fd, label, LABEL_SIZE)) != 0) {
 		if (i != LABEL_SIZE) {
@@ -1209,7 +1230,7 @@ int rdhead(void)
 			sscanf(label+5, "%5d", &blocksize);
 #ifdef	DEBUG
 			if (debugflag)
-				printf("blocksize = %d\n", blocksize);
+				printf("\n\tblocksize = %d\n", blocksize);
 #endif
 		}
 	}
@@ -1272,11 +1293,6 @@ void vmsbackup(void)
 		perror(tapefile);
 		exit(1);
 	}
-#ifdef DEBUG
-    if (debugflag) {
-	printf("Opened '%s' as %d\n", tapefile, fd);
-    }
-#endif
 #if HAVE_MT_IOCTLS
 	/* rewind the tape */
 	op.mt_op = MTREW;
@@ -1294,6 +1310,11 @@ void vmsbackup(void)
 	ondisk = 1;
 #endif
 
+#ifdef DEBUG
+    if (debugflag) {
+	printf("Opened '%s' as %s file: %d\n", tapefile, (ondisk?"disk":"tape"), fd);
+    }
+#endif
 	if (ondisk) {
 		/* process_block wants this to match the size which
 		   backup writes into the header.  Should it care in
@@ -1354,7 +1375,7 @@ void vmsbackup(void)
 					printf ("\nTotal of %u files, %lu blocks\n",
 						nfiles, nblocks);
 				rdtail();
-				eoffl=rdhead();
+				eoffl = rdhead();
 			}
 		}
 		else if (i == -1) {
