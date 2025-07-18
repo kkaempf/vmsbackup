@@ -606,7 +606,7 @@ void process_file(unsigned char *buffer, size_t rsize)
 	/* check the header word */
 	if (buffer[0] != 1 || buffer[1] != 1) {
 		printf("Snark: invalid data header in process_file: %02x %02x\n", buffer[0], buffer[1]);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	c = 2;
 	while (c < rsize) {
@@ -808,7 +808,7 @@ void process_file(unsigned char *buffer, size_t rsize)
 		sfilename = malloc (strlen (cfname) + 5);
 		if (sfilename == NULL) {
 			fprintf (stderr, "out of memory\n");
-			exit (1);
+			exit (EXIT_FAILURE);
 		}
 
 		if (cflag) {
@@ -1066,12 +1066,12 @@ void process_block(unsigned char *block, int blksize)
 			 "Invalid header block size: expected %ld got %d\n",
 			 sizeof (struct bbh),
 			 bhsize);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	if (bsize != 0 && bsize != blksize) {
 	    if (bsize > blksize) {
 		printf("Snark: Block header blocksize too large, aborting\n");
-		exit(1);
+		exit(EXIT_FAILURE);
 	    }
 	    printf("Detected changed blocksize, assuming Save Set\n");
 	    blocksize = bsize;
@@ -1092,7 +1092,7 @@ void process_block(unsigned char *block, int blksize)
 		rsize = getu16 ((unsigned char *)record_header->brh_dol_w_rsize);
 	    if (rsize > (bsize - i + 1)) {
 		printf("Record size %d larger than remaining block size (%ld), aborting\n", rsize, (bsize-i));
-		exit(1);
+		exit(EXIT_FAILURE);
 	    }
 #ifdef	DEBUG
 	        if (debugflag)
@@ -1206,7 +1206,7 @@ int rdhead(void)
 	while ((i = read(fd, label, LABEL_SIZE)) != 0) {
 		if (i != LABEL_SIZE) {
 			fprintf(stderr, "Snark: bad label record\n");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 		if (strncmp(label, "VOL1",4) == 0) {
 			sscanf(label+4, "%14s", name);
@@ -1232,7 +1232,7 @@ int rdhead(void)
 	block = (unsigned char *) malloc(blocksize);
 	if (block == (unsigned char *) 0) {
 		fprintf(stderr, "memory allocation for block failed\n");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 	return(nfound);
 }
@@ -1245,7 +1245,7 @@ void rdtail(void)
 	while ((i = read(fd, label, LABEL_SIZE)) != 0) {
 		if (i != LABEL_SIZE) {
 			fprintf(stderr, "Snark: bad label record\n");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 		if (strncmp(label, "EOF1",4) == 0) {
 			sscanf(label+4, "%14s", name);
@@ -1275,7 +1275,7 @@ void vmsbackup(void)
 	lf = fopen("log", "w");
 	if (lf == NULL) {
 		perror("log");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 #endif
 
@@ -1283,7 +1283,7 @@ void vmsbackup(void)
 	fd = open(tapefile, O_RDONLY);
 	if (fd < 0) {
 		perror(tapefile);
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 #if HAVE_MT_IOCTLS
 	/* rewind the tape */
@@ -1295,7 +1295,7 @@ void vmsbackup(void)
 			ondisk = 1;
 		} else {
 			perror(tapefile);
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 	}
 #else
@@ -1321,7 +1321,7 @@ void vmsbackup(void)
 		block = malloc (blocksize);
 		if (block == (unsigned char *) 0) {
 			fprintf(stderr, "memory allocation for block failed\n");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 		eoffl = 0;
 	} else {
@@ -1336,7 +1336,7 @@ void vmsbackup(void)
 		if(sflag && setnr != selset) {
 			if (ondisk) {
 				fprintf(stderr, "-s not supported for disk savesets\n");
-				exit(1);
+				exit(EXIT_FAILURE);
 			}
 #if HAVE_MT_IOCTLS
 			op.mt_op = MTFSF;
@@ -1344,7 +1344,7 @@ void vmsbackup(void)
 			i = ioctl(fd, MTIOCTOP, &op);
 			if (i < 0) {
 				perror(tapefile);
-				exit(1);
+				exit(EXIT_FAILURE);
 			}
 #else
 			abort ();
@@ -1372,11 +1372,11 @@ void vmsbackup(void)
 		}
 		else if (i == -1) {
 			perror ("error reading saveset");
-			exit (1);
+			exit (EXIT_FAILURE);
 		}
 		else if (i != blocksize) {
 			fprintf(stderr, "bad block read i = %d\n", i);
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 		else {
 			eoffl = 0;
@@ -1402,5 +1402,5 @@ void vmsbackup(void)
 #endif
 
 	/* exit cleanly */
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
