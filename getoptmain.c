@@ -15,7 +15,7 @@ char *version = "VMSBACKUP4.3";
 
 static void usage (char *progname)
 {
-	fprintf (stderr, "Usage:  %s -{tx}[cdevwF][-b blocksize][-s setnumber][-f tapefile]\n",
+	fprintf (stderr, "Usage: %s -{tx}[cdevwFVBD][-b blocksize][-s setnumber][-f tapefile] [ name ... ]\n",
 		 progname);
 #ifdef HAVE_GETOPTLONG
 	fprintf(stderr, "\nWith long versions of the above:\n"
