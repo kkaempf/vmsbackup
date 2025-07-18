@@ -173,7 +173,7 @@
 #define FAB$V_CHAN_MODE 2	/* channel */
 #define FAB$M_CHAN_MODE 0x0C
 #define FAB$S_CHAN_MODE 2
-#define FAB$V_FILE_MODE 4	/* file's accessability */
+#define FAB$V_FILE_MODE 4	/* file's accessibility */
 #define FAB$M_FILE_MODE 0x30
 #define FAB$S_FILE_MODE 2
 #define FAB$V_CALLERS_MODE 6	/* structure probing */
