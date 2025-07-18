@@ -3,7 +3,7 @@
  *  Title:
  *	Backup
  *
- *  Decription:
+ *  Description:
  *	Program to read VMS backup tape
  *
  *  Author:
