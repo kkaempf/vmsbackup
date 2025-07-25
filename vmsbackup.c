@@ -1044,6 +1044,7 @@ void process_block(unsigned char *block, int blksize)
 
 	unsigned short	bhsize, rsize, rtype;
 	unsigned long	bsize, i;
+    unsigned long bnumber;
 
 	i = 0;
 
@@ -1078,9 +1079,10 @@ void process_block(unsigned char *block, int blksize)
 	    vmsbackup();
 	}
 
+        bnumber = getu32((unsigned char *)block_header->bbh_dol_l_number);
 #ifdef	DEBUG
 	if (debugflag)
-		printf("new block: i = %ld, bsize = 0x%lx/%ld\n", i, bsize, bsize);
+		printf("new block #%ld: i = %ld, bsize = 0x%lx/%ld\n", bnumber, i, bsize, bsize);
 #endif
 	/* read the records */
 	while (i < (blksize - sizeof(struct brh))) {
@@ -1098,6 +1100,7 @@ void process_block(unsigned char *block, int blksize)
 	        if (debugflag)
 		{
 		    printf("Record header:\n");
+		    hexdump((unsigned char *)record_header, sizeof(struct brh), stdout);
 		    printf(" rtype = %d:%s\n", rtype, (rtype < sizeof(brh_type_names)/sizeof(char *))?brh_type_names[rtype]:"???");
 			printf("  rsize = 0x%x/%d\n", rsize, rsize);
 			printf("  flags = 0x%lx\n",
