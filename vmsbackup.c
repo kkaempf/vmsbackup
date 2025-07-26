@@ -129,6 +129,26 @@ static char *dtype_names[] = {
    add them if needed.  They are, of course little-endian as that is
    the byteorder used by all integers in a BACKUP saveset.  */
 
+unsigned long long getu64 (unsigned char *addr)
+{
+#ifdef DEBUG
+//    if (debugflag) {
+//	printf("getu64: ");
+//	hexdump(addr, 8, stdout);
+//    }
+#endif
+    unsigned long long u = 0LL;
+    u |= (unsigned long long)addr[7] << 56;
+    u |= (unsigned long long)addr[6] << 48;
+    u |= (unsigned long long)addr[5] << 40;
+    u |= (unsigned long long)addr[4] << 32;
+    u |= (unsigned long long)addr[3] << 24;
+    u |= (unsigned long long)addr[2] << 16;
+    u |= (unsigned long long)addr[1] << 8;
+    u |= (unsigned long long)addr[0];
+    return u;
+}
+
 unsigned long getu32 (unsigned char *addr)
 {
 #ifdef DEBUG

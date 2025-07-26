@@ -183,6 +183,8 @@ int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime, int srcle
     return sys$asctim (asclength, &buffer, srctime, 0);
 }
 #else
+/* from vmsbackup.c */
+unsigned long long getu64 (unsigned char *addr);
 #include <time.h>
 #include <string.h>
 #include "hexdump.h"
@@ -206,7 +208,8 @@ int time_vms_to_asc (short *asclength, char *ascbuffer, void *srctime, int srcle
       return 0;
     }
     /* get srctime as 64bit little endian to tval */
-    memcpy(&tval, srctime, srclen);
+    tval = getu64(srctime);
+
 //    printf("time_vms_to_asc %lld\n", tval);
 //    hexdump((unsigned char *)&tval, 8, stdout);
     tval /= (10LL * 1000 * 1000); /* to seconds */
