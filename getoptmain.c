@@ -158,6 +158,7 @@ int main (int argc, char *argv[])
 		exit(1);
 	}
 	vmsbackup ();
+    return 0;
 }
 
 /* The following is code for non-VMS systems which isn't related to main()
